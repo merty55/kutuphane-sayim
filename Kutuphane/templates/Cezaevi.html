@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cezaevi Sayımı</title>
+</head>
+<body>
+    <h1>Cezaevi Sayım Ekranı</h1>
+
+    {% if mesaj %}
+        <p style="color:red;">{{ mesaj }}</p>
+    {% endif %}
+
+    {% if kitap %}
+        <p>📖 Son Eklenen Kitap: {{ kitap }}</p>
+    {% endif %}
+
+    <form method="POST">
+        <input type="text" name="barkod" placeholder="Barkod okut" autofocus>
+        <button type="submit">Ekle</button>
+    </form>
+
+    <h2>Okunan Barkodlar:</h2>
+    <ul>
+        {% for b in okunanlar %}
+            <li>{{ b }}</li>
+        {% endfor %}
+    </ul>
+
+    <a href="/cezaevi-bitir">
+        <button style="background-color: orange;">📋 Sayımı Bitir</button>
+    </a>
+    <a href="/">
+        <button>⬅️ Ana Sayfa</button>
+    </a>
+</body>
+</html>
