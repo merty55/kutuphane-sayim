@@ -3,30 +3,27 @@ import pandas as pd
 import os
 import sys
 
-# Çalışma dizini
-BASE_DIR = os.getcwd()
+app = Flask(__name__)
 
-app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'))
-
-# Yardımcı fonksiyon: doğru dosya yolu
+# 📦 Yardımcı: Yol belirleyici
 def get_path(filename):
-    return os.path.join(BASE_DIR, filename)
+    return os.path.join(os.getcwd(), filename)
 
-# Ana kitap listesi
+# 📦 Ana kitap listesi
 if os.path.exists(get_path("sablon.csv")):
-    df = pd.read_csv(get_path("sablon.csv"))
+    df = pd.read_csv(get_path("sablon.csv"), encoding='utf-8')
 else:
     df = pd.DataFrame()
 
-# Ödünçteki kitap listesi
+# 📦 Ödünçteki kitap listesi
 if os.path.exists(get_path("oduncteki.csv")):
-    oduncteki_df = pd.read_csv(get_path("oduncteki.csv"))
+    oduncteki_df = pd.read_csv(get_path("oduncteki.csv"), encoding='utf-8')
 else:
     oduncteki_df = pd.DataFrame()
 
-# Cezaevi kitap listesi
+# 📦 Cezaevi kitap listesi
 if os.path.exists(get_path("cezaevi.csv")):
-    cezaevi_df = pd.read_csv(get_path("cezaevi.csv"))
+    cezaevi_df = pd.read_csv(get_path("cezaevi.csv"), encoding='utf-8')
 else:
     cezaevi_df = pd.DataFrame()
 
@@ -46,8 +43,8 @@ def yukle():
     global df
     dosya = request.files['dosya']
     if dosya:
-        df = pd.read_csv(dosya)
-        df.to_csv(get_path("sablon.csv"), index=False)
+        df = pd.read_csv(dosya, encoding='utf-8')
+        df.to_csv(get_path("sablon.csv"), index=False, encoding='utf-8')
         return redirect(url_for('home'))
     return "⚠️ Ana şablon yüklenemedi!"
 
@@ -60,8 +57,8 @@ def oduncteki_yukle():
     global oduncteki_df
     dosya = request.files['dosya']
     if dosya:
-        oduncteki_df = pd.read_csv(dosya)
-        oduncteki_df.to_csv(get_path("oduncteki.csv"), index=False)
+        oduncteki_df = pd.read_csv(dosya, encoding='utf-8')
+        oduncteki_df.to_csv(get_path("oduncteki.csv"), index=False, encoding='utf-8')
         return redirect(url_for('home'))
     return "⚠️ Ödünç şablon yüklenemedi!"
 
@@ -74,8 +71,8 @@ def cezaevi_yukle():
     global cezaevi_df
     dosya = request.files['dosya']
     if dosya:
-        cezaevi_df = pd.read_csv(dosya)
-        cezaevi_df.to_csv(get_path("cezaevi.csv"), index=False)
+        cezaevi_df = pd.read_csv(dosya, encoding='utf-8')
+        cezaevi_df.to_csv(get_path("cezaevi.csv"), index=False, encoding='utf-8')
         return redirect(url_for('home'))
     return "⚠️ Cezaevi şablon yüklenemedi!"
 
@@ -90,7 +87,7 @@ def sayim():
 
     if request.method == "POST":
         barkod = request.form.get("barkod")
-        if barkod and len(barkod) == 13:
+        if len(barkod) == 13:
             barkod = barkod[:12]
 
         if not oduncteki_df.empty and barkod in oduncteki_df['Barkod'].astype(str).values:
@@ -120,7 +117,7 @@ def cezaevi():
 
     if request.method == "POST":
         barkod = request.form.get("barkod")
-        if barkod and len(barkod) == 13:
+        if len(barkod) == 13:
             barkod = barkod[:12]
 
         if barkod in cezaevi_okunanlar:
