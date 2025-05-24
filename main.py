@@ -145,4 +145,19 @@ def cezaevi():
             else:
                 mesaj = '⚠️ Barkod cezaevi listesinde bulunamadı.'
 
-    return render_template('cezaevi.html', kitap=kitap, mesaj=mesaj, okunanlar=
+    return render_template('cezaevi.html', kitap=kitap, mesaj=mesaj, okunanlar=cezaevi_okunanlar)
+
+# Cezaevi bitir
+@app.route('/cezaevi-bitir')
+def cezaevi_bitir():
+    global cezaevi_df, cezaevi_okunanlar
+    if cezaevi_df.empty:
+        return '⚠️ cezaevi.csv yüklenmemiş.'
+    tum_barkodlar = cezaevi_df['Barkod'].astype(str).tolist()
+    okutulmayanlar = [b for b in tum_barkodlar if b not in cezaevi_okunanlar]
+    mesaj = '✅ Tüm kitaplar okutuldu!' if not okutulmayanlar else f'⚠️ Okutulmayanlar: {\", \".join(okutulmayanlar)}'
+    return mesaj + " <a href='/cezaevi'>Geri dön</a>"
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
