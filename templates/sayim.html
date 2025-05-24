@@ -1,55 +1,54 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Kitap Sayım Ekranı</title>
+    <meta charset="utf-8">
+    <title>Sayım Ekranı</title>
+    <style>
+        .normal { color: black; }
+        .mavi { color: blue; }
+        .turuncu { color: orange; }
+    </style>
 </head>
 <body>
     <h2>📖 Barkod Okut</h2>
-    <form method="POST">
-        <input type="text" name="barkod" placeholder="Barkod girin veya okutun" autofocus required>
+    <form method="post" action="/sayim">
+        <input type="text" name="barkod" placeholder="Barkod girin veya okutun">
         <button type="submit">Ekle</button>
     </form>
 
-    {% if mesaj %}
-        <p style="color:red;"><strong>{{ mesaj }}</strong></p>
-    {% endif %}
-
+    <!-- Son Okutulan Bilgisi -->
     {% if kitap %}
-        <h3>📚 Son Eklenen Kitap:</h3>
+        <h3>Son Eklenen Kitap:</h3>
         <ul>
-            {% for k, v in kitap.items() %}
-                <li><strong>{{ k }}:</strong> {{ v }}</li>
-            {% endfor %}
+            <li>Barkod: {{ kitap.Barkod }}</li>
+            <li>Eser Adı: {{ kitap['Eser Adı'] }}</li>
+            <li>Yazar: {{ kitap.Yazar }}</li>
+            <li>Yeri: {{ kitap.Yeri }}</li>
+            <li>Ödünç Verilebilirlik Durumu: {{ kitap['Ödünç Verilebilirlik Durumu'] }}</li>
         </ul>
     {% endif %}
 
-    <hr>
-    <h3>🗂 Okutulan Kitaplar</h3>
-    <ul>
-        {% for b in okunanlar %}
-            <li>{{ b }}</li>
-        {% endfor %}
-    </ul>
+    {% if mesaj %}
+        <p style="color:red;">{{ mesaj }}</p>
+    {% endif %}
 
-    <br><a href="/">⬅️ Anasayfa</a>
-
-    <a href="/temizle-okunanlar">
-        <button style="background-color: orange;">🗑️ Okunanları Sıfırla</button>
-    </a>
-
-    <a href="/sil-son-okunan">
-        <button style="background-color: lightblue;">❌ Son Okutulanı Sil</button>
-    </a>
-    
-    <h2>📋 Okunan Barkodlar:</h2>
+    <!-- Okunanlar Listesi -->
+    <h3>📋 Okutulan Kitaplar</h3>
     <ul>
     {% for barkod, renk in okunanlar %}
-        <li style="color: {{ 'blue' if renk == 'mavi' else ('orange' if renk == 'turuncu' else 'black') }}">
-            {{ barkod }}
-        </li>
+        <li class="{{ renk }}">{{ barkod }}</li>
     {% endfor %}
     </ul>
 
+    <!-- Kontrol Butonları -->
+    <form action="/sayim-geri" method="post" style="display:inline">
+        <button type="submit">🗑️ Sonu Sil</button>
+    </form>
+    <form action="/sayim-sifirla" method="post" style="display:inline">
+        <button type="submit">🔄 Tümünü Sıfırla</button>
+    </form>
 
+    <br><br>
+    <a href="/">⬅️ Anasayfa</a>
 </body>
 </html>
