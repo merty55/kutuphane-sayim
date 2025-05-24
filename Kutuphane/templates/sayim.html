@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kitap Sayım Ekranı</title>
+</head>
+<body>
+    <h2>📖 Barkod Okut</h2>
+    <form method="POST">
+        <input type="text" name="barkod" placeholder="Barkod girin veya okutun" autofocus required>
+        <button type="submit">Ekle</button>
+    </form>
+
+    {% if mesaj %}
+        <p style="color:red;"><strong>{{ mesaj }}</strong></p>
+    {% endif %}
+
+    {% if kitap %}
+        <h3>📚 Son Eklenen Kitap:</h3>
+        <ul>
+            {% for k, v in kitap.items() %}
+                <li><strong>{{ k }}:</strong> {{ v }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    <hr>
+    <h3>🗂 Okutulan Kitaplar</h3>
+    <ul>
+        {% for b in okunanlar %}
+            <li>{{ b }}</li>
+        {% endfor %}
+    </ul>
+
+    <br><a href="/">⬅️ Anasayfa</a>
+
+    <a href="/temizle-okunanlar">
+        <button style="background-color: orange;">🗑️ Okunanları Sıfırla</button>
+    </a>
+
+    <a href="/sil-son-okunan">
+        <button style="background-color: lightblue;">❌ Son Okutulanı Sil</button>
+    </a>
+
+
+</body>
+</html>
