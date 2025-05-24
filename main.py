@@ -3,31 +3,30 @@ import pandas as pd
 import os
 import sys
 
-# Çalışma dizini: Render kökü
+# Çalışma dizini
 BASE_DIR = os.getcwd()
 
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, 'templates'))
 
 # Yardımcı fonksiyon: doğru dosya yolu
-
 def get_path(filename):
     return os.path.join(BASE_DIR, filename)
 
 # Ana kitap listesi
-if os.path.exists(get_path("sablon.xlsx")):
-    df = pd.read_excel(get_path("sablon.xlsx"))
+if os.path.exists(get_path("sablon.csv")):
+    df = pd.read_csv(get_path("sablon.csv"))
 else:
     df = pd.DataFrame()
 
 # Ödünçteki kitap listesi
-if os.path.exists(get_path("oduncteki.xlsx")):
-    oduncteki_df = pd.read_excel(get_path("oduncteki.xlsx"))
+if os.path.exists(get_path("oduncteki.csv")):
+    oduncteki_df = pd.read_csv(get_path("oduncteki.csv"))
 else:
     oduncteki_df = pd.DataFrame()
 
 # Cezaevi kitap listesi
-if os.path.exists(get_path("cezaevi.xlsx")):
-    cezaevi_df = pd.read_excel(get_path("cezaevi.xlsx"))
+if os.path.exists(get_path("cezaevi.csv")):
+    cezaevi_df = pd.read_csv(get_path("cezaevi.csv"))
 else:
     cezaevi_df = pd.DataFrame()
 
@@ -40,43 +39,43 @@ def home():
 
 @app.route('/sablon-indir')
 def sablon_indir():
-    return send_file(get_path("sablon_bos.xlsx"), as_attachment=True)
+    return send_file(get_path("sablon_bos.csv"), as_attachment=True)
 
 @app.route('/yukle', methods=['POST'])
 def yukle():
     global df
     dosya = request.files['dosya']
     if dosya:
-        df = pd.read_excel(dosya)
-        df.to_excel(get_path("sablon.xlsx"), index=False)
+        df = pd.read_csv(dosya)
+        df.to_csv(get_path("sablon.csv"), index=False)
         return redirect(url_for('home'))
     return "⚠️ Ana şablon yüklenemedi!"
 
 @app.route('/oduncteki-sablon-indir')
 def oduncteki_sablon_indir():
-    return send_file(get_path("oduncteki_bos_sablon.xlsx"), as_attachment=True)
+    return send_file(get_path("oduncteki_bos_sablon.csv"), as_attachment=True)
 
 @app.route('/oduncteki-yukle', methods=['POST'])
 def oduncteki_yukle():
     global oduncteki_df
     dosya = request.files['dosya']
     if dosya:
-        oduncteki_df = pd.read_excel(dosya)
-        oduncteki_df.to_excel(get_path("oduncteki.xlsx"), index=False)
+        oduncteki_df = pd.read_csv(dosya)
+        oduncteki_df.to_csv(get_path("oduncteki.csv"), index=False)
         return redirect(url_for('home'))
     return "⚠️ Ödünç şablon yüklenemedi!"
 
 @app.route('/cezaevi-sablon-indir')
 def cezaevi_sablon_indir():
-    return send_file(get_path("cezaevi_bos_sablon.xlsx"), as_attachment=True)
+    return send_file(get_path("cezaevi_bos_sablon.csv"), as_attachment=True)
 
 @app.route('/cezaevi-yukle', methods=['POST'])
 def cezaevi_yukle():
     global cezaevi_df
     dosya = request.files['dosya']
     if dosya:
-        cezaevi_df = pd.read_excel(dosya)
-        cezaevi_df.to_excel(get_path("cezaevi.xlsx"), index=False)
+        cezaevi_df = pd.read_csv(dosya)
+        cezaevi_df.to_csv(get_path("cezaevi.csv"), index=False)
         return redirect(url_for('home'))
     return "⚠️ Cezaevi şablon yüklenemedi!"
 
@@ -87,11 +86,11 @@ def sayim():
     mesaj = None
 
     if df.empty:
-        return "⚠️ sablon.xlsx yüklenmemiş."
+        return "⚠️ sablon.csv yüklenmemiş."
 
     if request.method == "POST":
         barkod = request.form.get("barkod")
-        if len(barkod) == 13:
+        if barkod and len(barkod) == 13:
             barkod = barkod[:12]
 
         if not oduncteki_df.empty and barkod in oduncteki_df['Barkod'].astype(str).values:
@@ -117,11 +116,11 @@ def cezaevi():
     mesaj = None
 
     if cezaevi_df.empty:
-        return "⚠️ cezaevi.xlsx yüklenmemiş."
+        return "⚠️ cezaevi.csv yüklenmemiş."
 
     if request.method == "POST":
         barkod = request.form.get("barkod")
-        if len(barkod) == 13:
+        if barkod and len(barkod) == 13:
             barkod = barkod[:12]
 
         if barkod in cezaevi_okunanlar:
@@ -141,7 +140,7 @@ def cezaevi_bitir():
     global cezaevi_df, cezaevi_okunanlar
 
     if cezaevi_df.empty:
-        return "⚠️ cezaevi.xlsx yüklenmemiş."
+        return "⚠️ cezaevi.csv yüklenmemiş."
 
     tum_barkodlar = cezaevi_df['Barkod'].astype(str).tolist()
     okutulmayanlar = [b for b in tum_barkodlar if b not in cezaevi_okunanlar]
@@ -158,5 +157,5 @@ if __name__ == '__main__':
     try:
         app.run(host='0.0.0.0', port=port)
     except OSError as e:
-        print(f"Port error: {e}")
+        print(f\"Port error: {e}\")
         sys.exit(1)
