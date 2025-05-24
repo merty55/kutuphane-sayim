@@ -1,4 +1,4 @@
-Flask==3.0.0
+Flask>=2.2,<4
 pandas
 openpyxl
 gunicorn
