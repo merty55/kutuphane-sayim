@@ -5,26 +5,28 @@ import sys
 
 app = Flask(__name__)
 
-# 📦 Yardımcı: Yol belirleyici
 def get_path(filename):
     return os.path.join(os.getcwd(), filename)
 
 # 📦 Ana kitap listesi
-if os.path.exists(get_path("sablon.csv")):
-    df = pd.read_csv(get_path("sablon.csv"), encoding='utf-8')
-else:
+try:
+    df = pd.read_csv(get_path("sablon.csv"), encoding='utf-8') if os.path.exists(get_path("sablon.csv")) else pd.DataFrame()
+except Exception as e:
+    print(f"⚠️ sablon.csv yüklenirken hata: {e}")
     df = pd.DataFrame()
 
 # 📦 Ödünçteki kitap listesi
-if os.path.exists(get_path("oduncteki.csv")):
-    oduncteki_df = pd.read_csv(get_path("oduncteki.csv"), encoding='utf-8')
-else:
+try:
+    oduncteki_df = pd.read_csv(get_path("oduncteki.csv"), encoding='utf-8') if os.path.exists(get_path("oduncteki.csv")) else pd.DataFrame()
+except Exception as e:
+    print(f"⚠️ oduncteki.csv yüklenirken hata: {e}")
     oduncteki_df = pd.DataFrame()
 
 # 📦 Cezaevi kitap listesi
-if os.path.exists(get_path("cezaevi.csv")):
-    cezaevi_df = pd.read_csv(get_path("cezaevi.csv"), encoding='utf-8')
-else:
+try:
+    cezaevi_df = pd.read_csv(get_path("cezaevi.csv"), encoding='utf-8') if os.path.exists(get_path("cezaevi.csv")) else pd.DataFrame()
+except Exception as e:
+    print(f"⚠️ cezaevi.csv yüklenirken hata: {e}")
     cezaevi_df = pd.DataFrame()
 
 okunanlar = []
@@ -43,10 +45,13 @@ def yukle():
     global df
     dosya = request.files['dosya']
     if dosya:
-        df = pd.read_csv(dosya, encoding='utf-8')
-        df.to_csv(get_path("sablon.csv"), index=False, encoding='utf-8')
-        return redirect(url_for('home'))
-    return "⚠️ Ana şablon yüklenemedi!"
+        try:
+            df = pd.read_csv(dosya, encoding='utf-8')
+            df.to_csv(get_path("sablon.csv"), index=False, encoding='utf-8')
+            return redirect(url_for('home'))
+        except Exception as e:
+            return f"⚠️ Ana şablon yüklenemedi: {e}"
+    return "⚠️ Dosya seçilmedi!"
 
 @app.route('/oduncteki-sablon-indir')
 def oduncteki_sablon_indir():
@@ -57,10 +62,13 @@ def oduncteki_yukle():
     global oduncteki_df
     dosya = request.files['dosya']
     if dosya:
-        oduncteki_df = pd.read_csv(dosya, encoding='utf-8')
-        oduncteki_df.to_csv(get_path("oduncteki.csv"), index=False, encoding='utf-8')
-        return redirect(url_for('home'))
-    return "⚠️ Ödünç şablon yüklenemedi!"
+        try:
+            oduncteki_df = pd.read_csv(dosya, encoding='utf-8')
+            oduncteki_df.to_csv(get_path("oduncteki.csv"), index=False, encoding='utf-8')
+            return redirect(url_for('home'))
+        except Exception as e:
+            return f"⚠️ Ödünç şablon yüklenemedi: {e}"
+    return "⚠️ Dosya seçilmedi!"
 
 @app.route('/cezaevi-sablon-indir')
 def cezaevi_sablon_indir():
@@ -71,10 +79,13 @@ def cezaevi_yukle():
     global cezaevi_df
     dosya = request.files['dosya']
     if dosya:
-        cezaevi_df = pd.read_csv(dosya, encoding='utf-8')
-        cezaevi_df.to_csv(get_path("cezaevi.csv"), index=False, encoding='utf-8')
-        return redirect(url_for('home'))
-    return "⚠️ Cezaevi şablon yüklenemedi!"
+        try:
+            cezaevi_df = pd.read_csv(dosya, encoding='utf-8')
+            cezaevi_df.to_csv(get_path("cezaevi.csv"), index=False, encoding='utf-8')
+            return redirect(url_for('home'))
+        except Exception as e:
+            return f"⚠️ Cezaevi şablon yüklenemedi: {e}"
+    return "⚠️ Dosya seçilmedi!"
 
 @app.route('/sayim', methods=['GET', 'POST'])
 def sayim():
@@ -152,7 +163,7 @@ def cezaevi_bitir():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
     try:
-        app.run(host='0.0.0.0', port=port)
+        app.run(host='0.0.0.0', port=port, debug=False)
     except OSError as e:
         print(f"Port error: {e}")
         sys.exit(1)
