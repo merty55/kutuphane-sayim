@@ -1,1 +1,0 @@
-# kutuphane-sayim
