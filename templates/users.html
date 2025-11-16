@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Kullanıcı Yönetimi</title>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --primary-dark: #0d47a1;
+            --accent: #ff9800;
+            --accent-dark: #f57c00;
+            --bg: #f4f6fb;
+            --card-bg: #ffffff;
+            --text-main: #222;
+            --text-muted: #666;
+            --border-radius: 10px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+        }
+
+        .topbar {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: #fff;
+            padding: 14px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+        }
+
+        .topbar-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .topbar-nav a {
+            color: #fff;
+            text-decoration: none;
+            margin-left: 16px;
+            font-size: 14px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            transition: background 0.2s ease;
+        }
+
+        .topbar-nav a:hover {
+            background: rgba(255,255,255,0.18);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 28px auto 40px;
+            padding: 0 16px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 16px 18px 18px;
+            box-shadow: 0 2px 8px rgba(15,25,35,0.12);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: #fff;
+        }
+
+        th, td {
+            padding: 8px 10px;
+            text-align: left;
+        }
+
+        th:first-child {
+            border-top-left-radius: 8px;
+        }
+        th:last-child {
+            border-top-right-radius: 8px;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #f9fafc;
+        }
+
+        tbody tr:hover {
+            background: #e3f2fd;
+        }
+
+        tbody td {
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .badge-admin {
+            background: rgba(25,118,210,0.08);
+            color: #0d47a1;
+        }
+
+        .badge-user {
+            background: rgba(158,158,158,0.12);
+            color: #424242;
+        }
+
+        .badge-active {
+            background: rgba(56,142,60,0.12);
+            color: #2e7d32;
+        }
+
+        .badge-passive {
+            background: rgba(229,57,53,0.10);
+            color: #c62828;
+        }
+
+        .btn-small {
+            border: none;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font-size: 11px;
+            cursor: pointer;
+            margin-right: 4px;
+            margin-bottom: 4px;
+            color: #fff;
+        }
+
+        .btn-toggle {
+            background: var(--accent);
+        }
+        .btn-toggle:hover {
+            background: var(--accent-dark);
+        }
+
+        .btn-delete {
+            background: #e53935;
+        }
+        .btn-delete:hover {
+            background: #c62828;
+        }
+
+        .alert {
+            margin-bottom: 12px;
+            padding: 9px 11px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .alert-error {
+            background: #ffebee;
+            border-left: 4px solid #e53935;
+            color: #b71c1c;
+        }
+
+        .alert-success {
+            background: #e3f2fd;
+            border-left: 4px solid var(--primary);
+            color: #0d47a1;
+        }
+
+        .user-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .user-label strong {
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <div>
+        <div class="topbar-title">Kullanıcı Yönetimi</div>
+        {% if current_username %}
+            <div class="user-label">Giriş yapan yönetici: <strong>{{ current_username }}</strong></div>
+        {% endif %}
+    </div>
+    <div class="topbar-nav">
+        <a href="{{ url_for('index') }}">Ana Sayfa</a>
+        <a href="{{ url_for('add_book') }}">Barkod Okut</a>
+        <a href="{{ url_for('books') }}">Kitap Listesi</a>
+        <a href="{{ url_for('change_password') }}">Şifre Değiştir</a>
+        <a href="{{ url_for('logout') }}">Çıkış Yap</a>
+    </div>
+</div>
+
+<div class="container">
+    <h1>Kullanıcılar</h1>
+    <p class="subtitle">Buradan sistemdeki tüm kullanıcıları görebilir, aktif/pasif durumlarını değiştirebilir veya silebilirsiniz.</p>
+
+    {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    {% if success %}
+        <div class="alert alert-success">{{ success }}</div>
+    {% endif %}
+
+    <div class="card">
+        {% if users and users|length > 0 %}
+            <table>
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Kullanıcı Adı</th>
+                    <th>Rol</th>
+                    <th>Durum</th>
+                    <th>İşlemler</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for u in users %}
+                    <tr>
+                        <td>{{ u.id }}</td>
+                        <td>{{ u.username }}</td>
+                        <td>
+                            {% if u.is_admin %}
+                                <span class="badge badge-admin">Yönetici</span>
+                            {% else %}
+                                <span class="badge badge-user">Kullanıcı</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if u.is_active %}
+                                <span class="badge badge-active">Aktif</span>
+                            {% else %}
+                                <span class="badge badge-passive">Pasif</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <!-- Aktif/Pasif -->
+                            <form method="post" action="{{ url_for('toggle_user', user_id=u.id) }}" style="display:inline;">
+                                <button type="submit" class="btn-small btn-toggle">
+                                    {% if u.is_active %}Pasife Al{% else %}Aktif Et{% endif %}
+                                </button>
+                            </form>
+
+                            <!-- Sil -->
+                            <form method="post" action="{{ url_for('delete_user', user_id=u.id) }}"
+                                  style="display:inline;"
+                                  onsubmit="return confirm('Bu kullanıcıyı silmek istediğinize emin misiniz?');">
+                                <button type="submit" class="btn-small btn-delete">Sil</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p style="font-size:13px;color:var(--text-muted);margin:4px 0;">
+                Sistemde kayıtlı kullanıcı bulunamadı.
+            </p>
+        {% endif %}
+    </div>
+</div>
+</body>
+</html>

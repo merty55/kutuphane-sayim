@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Barkod Okut / Yeni Kitap Ekle</title>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --primary-dark: #0d47a1;
+            --accent: #ff9800;
+            --accent-dark: #f57c00;
+            --bg: #f4f6fb;
+            --card-bg: #ffffff;
+            --text-main: #222;
+            --text-muted: #666;
+            --border-radius: 10px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+        }
+
+        .topbar {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: #fff;
+            padding: 14px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+        }
+
+        .topbar-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .topbar-nav a {
+            color: #fff;
+            text-decoration: none;
+            margin-left: 16px;
+            font-size: 14px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            transition: background 0.2s ease;
+        }
+
+        .topbar-nav a:hover {
+            background: rgba(255,255,255,0.18);
+        }
+
+        .container {
+            max-width: 980px;
+            margin: 28px auto 40px;
+            padding: 0 16px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            margin-bottom: 20px;
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: 2fr 1.4fr;
+            gap: 18px;
+        }
+
+        @media (max-width: 900px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 18px 20px 20px;
+            box-shadow: 0 2px 8px rgba(15,25,35,0.12);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        label {
+            font-weight: 500;
+            font-size: 13px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #cfd8dc;
+            font-size: 14px;
+            outline: none;
+            transition: border 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(25,118,210,0.18);
+        }
+
+        .form-group {
+            margin-bottom: 10px;
+        }
+
+        .btn-primary,
+        .btn-danger {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s ease, transform 0.08s ease;
+            color: #fff;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+        }
+        .btn-primary:hover {
+            background: var(--accent-dark);
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: #e53935;
+        }
+        .btn-danger:hover {
+            background: #c62828;
+            transform: translateY(-1px);
+        }
+
+        .alert {
+            margin-bottom: 12px;
+            padding: 9px 11px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .alert-error {
+            background: #ffebee;
+            border-left: 4px solid #e53935;
+            color: #b71c1c;
+        }
+
+        .alert-success {
+            background: #e3f2fd;
+            border-left: 4px solid var(--primary);
+            color: #0d47a1;
+        }
+
+        .last-book-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .last-book-item {
+            font-size: 13px;
+            margin: 2px 0;
+        }
+
+        .last-book-item span {
+            font-weight: 500;
+            color: var(--text-muted);
+        }
+
+        .warning-overlay {
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .warning-modal {
+            background-color: #fff;
+            padding: 20px 26px 18px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 260px;
+            max-width: 320px;
+            box-shadow: 0 8px 18px rgba(0,0,0,0.25);
+        }
+
+        .warning-modal h2 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 18px;
+            color: #d84315;
+        }
+
+        .warning-modal p {
+            margin-top: 0;
+            margin-bottom: 14px;
+            font-size: 14px;
+        }
+
+        .warning-button {
+            background-color: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 7px 18px;
+            border-radius: 999px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <div class="topbar-title">Barkod Okut / Kitap Ekle</div>
+    <div class="topbar-nav">
+        <a href="{{ url_for('index') }}">Ana Sayfa</a>
+        <a href="{{ url_for('add_book') }}">Barkod Okut</a>
+        <a href="{{ url_for('books') }}">Kitap Listesi</a>
+        <a href="{{ url_for('change_password') }}">Şifre Değiştir</a>
+        <a href="{{ url_for('logout') }}">Çıkış Yap</a>
+    </div>
+</div>
+
+<div class="container">
+    <h1>Barkod Okut</h1>
+    <p class="subtitle">Barkod okuyucunuz barkodu okutup otomatik Enter gönderdiğinde kitap bilgileri genel listeden çekilerek kaydedilir.</p>
+
+    {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    {% if success %}
+        <div class="alert alert-success">{{ success }}</div>
+    {% endif %}
+
+    <div class="layout">
+        <div class="card">
+            <h2>Kitap Bilgileri</h2>
+            <form method="post" action="{{ url_for('add_book') }}" id="bookForm">
+                <input type="hidden" name="action" id="actionInput" value="save">
+
+                <div class="form-group">
+                    <label for="kitap_barkod">KitapBarkod</label>
+                    <input type="text" id="kitap_barkod" name="kitap_barkod"
+                           value="{{ kitap_barkod or '' }}" autocomplete="off">
+                    <div class="hint">Barkod okuyucuyu kullanın. Enter ile otomatik getir &amp; kaydet.</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="kitap_adi">KitapAdı</label>
+                    <input type="text" id="kitap_adi" name="kitap_adi"
+                           value="{{ kitap_adi or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="bolumu">Bölümü</label>
+                    <input type="text" id="bolumu" name="bolumu"
+                           value="{{ bolumu or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="statusu">Statüsü</label>
+                    <input type="text" id="statusu" name="statusu"
+                           value="{{ statusu or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="odunc_durumu">YerNumarası</label>
+                    <input type="text" id="odunc_durumu" name="odunc_durumu"
+                           value="{{ odunc_durumu or '' }}">
+                </div>
+
+                <button type="submit"
+                        class="btn-primary"
+                        onclick="document.getElementById('actionInput').value='save';">
+                    Kaydet (Elle Giriş)
+                </button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Son Eklenen Kitap</h2>
+            {% if last_kitap_barkod %}
+                <div class="last-book">
+                    <div class="last-book-title">{{ last_kitap_adi }}</div>
+                    <p class="last-book-item"><span>KitapBarkod:</span> {{ last_kitap_barkod }}</p>
+                    <p class="last-book-item"><span>Bölümü:</span> {{ last_bolumu }}</p>
+                    <p class="last-book-item"><span>Statüsü:</span> {{ last_statusu }}</p>
+                    <p class="last-book-item"><span>YerNumarası:</span> {{ last_odunc_durumu }}</p>
+                </div>
+
+                <form method="post" action="{{ url_for('delete_last', kitap_barkod=last_kitap_barkod) }}"
+                      onsubmit="return confirm('Son eklenen kitabı silmek istediğinizden emin misiniz?');"
+                      style="margin-top: 10px;">
+                    <button type="submit" class="btn-danger">
+                        Son Eklenen Kitabı Sil
+                    </button>
+                </form>
+            {% else %}
+                <p style="font-size:13px;color:var(--text-muted);">
+                    Henüz kayıtlı kitap yok veya bu oturumda yeni eklenmiş bir kitap bulunmuyor.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if warning %}
+        <div class="warning-overlay">
+            <div class="warning-modal">
+                <h2>Dikkat</h2>
+                <p>{{ warning }}</p>
+                <button class="warning-button" onclick="closeWarning()">Tamam</button>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<script>
+    function closeWarning() {
+        const overlay = document.querySelector('.warning-overlay');
+        if (overlay) {
+            overlay.style.display = 'none';
+        }
+    }
+
+    window.addEventListener('load', function () {
+        const barkodInput = document.getElementById('kitap_barkod');
+        if (barkodInput) {
+            barkodInput.focus();
+            barkodInput.select();
+        }
+    });
+
+    const barkodInput = document.getElementById('kitap_barkod');
+    const form = document.getElementById('bookForm');
+    if (barkodInput && form) {
+        barkodInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('actionInput').value = 'lookup';
+                form.submit();
+            }
+        });
+    }
+</script>
+</body>
+</html>
