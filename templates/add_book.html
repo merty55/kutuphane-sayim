@@ -255,6 +255,11 @@
     <h1>Barkod Okut</h1>
     <p class="subtitle">Barkod okuyucunuz barkodu okutup otomatik Enter gönderdiğinde kitap bilgileri genel listeden çekilerek kaydedilir.</p>
 
+    <!-- 📊 TOPLAM KİTAP SAYACI -->
+    <div class="alert alert-success">
+        Toplam kayıtlı kitap sayısı: <strong>{{ total_books }}</strong>
+    </div>
+
     {% if error %}
         <div class="alert alert-error">{{ error }}</div>
     {% endif %}
@@ -279,6 +284,12 @@
                     <label for="kitap_adi">KitapAdı</label>
                     <input type="text" id="kitap_adi" name="kitap_adi"
                            value="{{ kitap_adi or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="yazar">Yazar</label>
+                    <input type="text" id="yazar" name="yazar"
+                           value="{{ yazar or '' }}">
                 </div>
 
                 <div class="form-group">
@@ -313,6 +324,7 @@
                 <div class="last-book">
                     <div class="last-book-title">{{ last_kitap_adi }}</div>
                     <p class="last-book-item"><span>KitapBarkod:</span> {{ last_kitap_barkod }}</p>
+                    <p class="last-book-item"><span>Yazar:</span> {{ last_yazar }}</p>
                     <p class="last-book-item"><span>Bölümü:</span> {{ last_bolumu }}</p>
                     <p class="last-book-item"><span>Statüsü:</span> {{ last_statusu }}</p>
                     <p class="last-book-item"><span>YerNumarası:</span> {{ last_odunc_durumu }}</p>

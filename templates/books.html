@@ -114,6 +114,24 @@
             border-radius: var(--border-radius);
             padding: 16px 18px 18px;
             box-shadow: 0 2px 8px rgba(15,25,35,0.12);
+            margin-bottom: 16px;
+        }
+
+        /* Kullanıcı özet kartını biraz daha küçük ve ortalı yap */
+        .user-summary-card {
+            max-width: 520px;
+            margin: 0 auto 18px;
+            padding: 12px 16px 14px;
+        }
+
+        .user-summary-card h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        .user-summary-card table {
+            font-size: 13px;
         }
 
         table {
@@ -174,6 +192,10 @@
             table {
                 font-size: 12px;
             }
+
+            .user-summary-card {
+                margin: 0 0 16px 0;
+            }
         }
     </style>
 </head>
@@ -200,6 +222,29 @@
         <div class="alert alert-success">{{ success }}</div>
     {% endif %}
 
+    {# --- KULLANICI BAZLI SAYIM ÖZETİ --- #}
+    {% if user_counts and user_counts|length > 0 %}
+        <div class="card user-summary-card">
+            <h3>Kullanıcı Bazlı Kitap Sayıları</h3>
+            <table>
+                <thead>
+                <tr>
+                    <th>Kullanıcı Adı</th>
+                    <th>Eklediği Kitap Sayısı</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for row in user_counts %}
+                    <tr>
+                        <td>{{ row.username }}</td>
+                        <td>{{ row.count }}</td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
     <div class="actions">
         <form method="post"
               action="{{ url_for('reset_count') }}"
@@ -223,9 +268,11 @@
                     <th>ID</th>
                     <th>KitapBarkod</th>
                     <th>KitapAdı</th>
+                    <th>Yazar</th>
                     <th>Bölümü</th>
                     <th>Statüsü</th>
                     <th>YerNumarası</th>
+                    <th>Ekleyen Kullanıcı</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -234,9 +281,11 @@
                         <td>{{ book.id }}</td>
                         <td>{{ book.kitap_barkod }}</td>
                         <td>{{ book.kitap_adi }}</td>
+                        <td>{{ book.yazar }}</td>
                         <td>{{ book.bolumu }}</td>
                         <td>{{ book.statusu }}</td>
                         <td>{{ book.odunc_durumu }}</td>
+                        <td>{{ book.created_by or '' }}</td>
                     </tr>
                 {% endfor %}
                 </tbody>

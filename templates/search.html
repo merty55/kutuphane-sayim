@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Kitap Ara</title>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --primary-dark: #0d47a1;
+            --accent: #ff9800;
+            --accent-dark: #f57c00;
+            --bg: #f4f6fb;
+            --card-bg: #ffffff;
+            --text-main: #222;
+            --text-muted: #666;
+            --border-radius: 10px;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+        }
+
+        .topbar {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: #fff;
+            padding: 14px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+        }
+
+        .topbar-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .topbar-nav a {
+            color: #fff;
+            text-decoration: none;
+            margin-left: 16px;
+            font-size: 14px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            transition: background 0.2s ease;
+        }
+
+        .topbar-nav a:hover {
+            background: rgba(255,255,255,0.18);
+        }
+
+        .user-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+
+        .user-label strong {
+            font-weight: 600;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 28px auto 40px;
+            padding: 0 16px;
+        }
+
+        h1 {
+            font-size: 22px;
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            margin-bottom: 16px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 18px 20px 20px;
+            box-shadow: 0 2px 8px rgba(15,25,35,0.12);
+            margin-bottom: 18px;
+        }
+
+        .search-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .search-row input[type="text"] {
+            flex: 1;
+            min-width: 220px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #cfd8dc;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .search-row input[type="text"]:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(25,118,210,0.18);
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 999px;
+            padding: 8px 16px;
+            font-size: 14px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.2s ease, transform 0.08s ease;
+            color: #fff;
+            background: var(--primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-1px);
+        }
+
+        .alert {
+            margin-top: 10px;
+            padding: 9px 11px;
+            border-radius: 8px;
+            font-size: 13px;
+        }
+
+        .alert-error {
+            background: #fff3e0;
+            border-left: 4px solid var(--accent-dark);
+            color: #e65100;
+        }
+
+        .alert-info {
+            background: #e3f2fd;
+            border-left: 4px solid var(--primary);
+            color: #0d47a1;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 13px;
+        }
+
+        th, td {
+            border: 1px solid #e0e0e0;
+            padding: 6px 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #f5f5f5;
+            font-weight: 600;
+        }
+
+        tr:nth-child(even) {
+            background: #fafafa;
+        }
+
+        tr:hover {
+            background: #eaf2ff;
+        }
+
+        /* Sütun filtre inputları */
+        .filter-input {
+            width: 100%;
+            padding: 4px 6px;
+            border-radius: 6px;
+            border: 1px solid #cfd8dc;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .filter-input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 1px rgba(25,118,210,0.18);
+        }
+
+        @media (max-width: 600px) {
+            .topbar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <div>
+        <div class="topbar-title">Kütüphane Kitap Sayım Paneli</div>
+        {% if current_username %}
+            <div class="user-label">Giriş yapan kullanıcı: <strong>{{ current_username }}</strong></div>
+        {% endif %}
+    </div>
+    <div class="topbar-nav">
+        <a href="{{ url_for('index') }}">Ana Sayfa</a>
+        <a href="{{ url_for('add_book') }}">Barkod Okut</a>
+        <a href="{{ url_for('books') }}">Kitap Listesi</a>
+        <a href="{{ url_for('search') }}">Kitap Ara</a>
+        <a href="{{ url_for('change_password') }}">Şifre Değiştir</a>
+        <a href="{{ url_for('logout') }}">Çıkış Yap</a>
+    </div>
+</div>
+
+<div class="container">
+    <h1>Kitap Ara</h1>
+    <p class="subtitle">Yüklediğiniz genel listede, kitap adında geçen kelimeye göre arama yapabilir ve sonuçları sütunlara göre filtreleyebilirsiniz.</p>
+
+    <div class="card">
+        <form method="post" action="{{ url_for('search') }}">
+            <div class="search-row">
+                <input
+                    type="text"
+                    name="query"
+                    placeholder="Kitap adının tamamı veya bir kısmı..."
+                    value="{{ query or '' }}"
+                >
+                <button type="submit" class="btn-primary">Ara</button>
+            </div>
+        </form>
+
+        {% if error %}
+            <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+
+        {% if results and not error %}
+            <div class="alert alert-info">
+                Toplam <strong>{{ results|length }}</strong> sonuç bulundu.
+            </div>
+
+            <table id="results-table">
+                <thead>
+                    <tr>
+                        <th>KitapBarkod</th>
+                        <th>KitapAdı</th>
+                        <th>Yazar</th>
+                        <th>Bölümü</th>
+                        <th>Statüsü</th>
+                        <th>YerNumarası</th>
+                    </tr>
+                    <!-- Sütun filtre satırı -->
+                    <tr>
+                        <th>
+                            <input
+                                type="text"
+                                class="filter-input"
+                                placeholder="Barkod filtrele"
+                                onkeyup="filterTable()"
+                                id="filter-barkod"
+                            >
+                        </th>
+                        <th>
+                            <input
+                                type="text"
+                                class="filter-input"
+                                placeholder="Kitap adı filtrele"
+                                onkeyup="filterTable()"
+                                id="filter-ad"
+                            >
+                        </th>
+                        <th>
+                            <input
+                                type="text"
+                                class="filter-input"
+                                placeholder="Yazar filtrele"
+                                onkeyup="filterTable()"
+                                id="filter-yazar"
+                            >
+                        </th>
+                        <th>
+                            <input
+                                type="text"
+                                class="filter-input"
+                                placeholder="Bölüm filtrele"
+                                onkeyup="filterTable()"
+                                id="filter-bolum"
+                            >
+                        </th>
+                        <th>
+                            <input
+                                type="text"
+                                class="filter-input"
+                                placeholder="Statü filtrele"
+                                onkeyup="filterTable()"
+                                id="filter-status"
+                            >
+                        </th>
+                        <th>
+                            <input
+                                type="text"
+                                class="filter-input"
+                                placeholder="Yer no filtrele"
+                                onkeyup="filterTable()"
+                                id="filter-yer"
+                            >
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in results %}
+                        <tr>
+                            <td>{{ row["KitapBarkod"] }}</td>
+                            <td>{{ row["KitapAdı"] }}</td>
+                            <td>{{ row["Yazar"] }}</td>
+                            <td>{{ row["Bölümü"] }}</td>
+                            <td>{{ row["Statüsü"] }}</td>
+                            <td>{{ row["YerNumarası"] }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function filterTable() {
+        const barkodFilter = document.getElementById('filter-barkod').value.toLowerCase();
+        const adFilter     = document.getElementById('filter-ad').value.toLowerCase();
+        const yazarFilter  = document.getElementById('filter-yazar').value.toLowerCase();
+        const bolumFilter  = document.getElementById('filter-bolum').value.toLowerCase();
+        const statusFilter = document.getElementById('filter-status').value.toLowerCase();
+        const yerFilter    = document.getElementById('filter-yer').value.toLowerCase();
+
+        const table = document.getElementById('results-table');
+        const tbody = table.getElementsByTagName('tbody')[0];
+        const rows  = tbody.getElementsByTagName('tr');
+
+        for (let i = 0; i < rows.length; i++) {
+            const cells = rows[i].getElementsByTagName('td');
+            const barkodText = (cells[0].innerText || '').toLowerCase();
+            const adText     = (cells[1].innerText || '').toLowerCase();
+            const yazarText  = (cells[2].innerText || '').toLowerCase();
+            const bolumText  = (cells[3].innerText || '').toLowerCase();
+            const statusText = (cells[4].innerText || '').toLowerCase();
+            const yerText    = (cells[5].innerText || '').toLowerCase();
+
+            let show = true;
+
+            if (barkodFilter && !barkodText.includes(barkodFilter)) {
+                show = false;
+            }
+            if (adFilter && !adText.includes(adFilter)) {
+                show = false;
+            }
+            if (yazarFilter && !yazarText.includes(yazarFilter)) {
+                show = false;
+            }
+            if (bolumFilter && !bolumText.includes(bolumFilter)) {
+                show = false;
+            }
+            if (statusFilter && !statusText.includes(statusFilter)) {
+                show = false;
+            }
+            if (yerFilter && !yerText.includes(yerFilter)) {
+                show = false;
+            }
+
+            rows[i].style.display = show ? '' : 'none';
+        }
+    }
+</script>
+</body>
+</html>

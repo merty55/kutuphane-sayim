@@ -14,7 +14,7 @@ from flask import (
 )
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import text
+from sqlalchemy import text, func
 import pandas as pd
 
 app = Flask(__name__)
@@ -52,9 +52,11 @@ class Book(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     kitap_barkod = db.Column(db.String(50), unique=True, nullable=False)
     kitap_adi = db.Column(db.String(300), nullable=False)
+    yazar = db.Column(db.String(200), nullable=True)          # YENİ: Yazar
     bolumu = db.Column(db.String(200), nullable=True)
     statusu = db.Column(db.String(100), nullable=True)
-    odunc_durumu = db.Column(db.String(200), nullable=True)  # YerNumarası
+    odunc_durumu = db.Column(db.String(200), nullable=True)   # YerNumarası
+    created_by = db.Column(db.String(50), nullable=True)      # EKLEYEN KULLANICI
 
     def __repr__(self):
         return f"<Book {self.kitap_barkod} - {self.kitap_adi}>"
@@ -70,6 +72,7 @@ def find_book_from_master(barcode: str):
     Alanlar:
       - KitapBarkod
       - KitapAdı
+      - Yazar
       - Bölümü
       - Statüsü
       - YerNumarası
@@ -94,6 +97,7 @@ def find_book_from_master(barcode: str):
                 return {
                     "KitapBarkod": (row.get("KitapBarkod") or "").strip(),
                     "KitapAdı": (row.get("KitapAdı") or "").strip(),
+                    "Yazar": (row.get("Yazar") or "").strip(),
                     "Bölümü": (row.get("Bölümü") or "").strip(),
                     "Statüsü": (row.get("Statüsü") or "").strip(),
                     "YerNumarası": (row.get("YerNumarası") or "").strip(),
@@ -298,7 +302,6 @@ def delete_user(user_id):
     # Son admin ise silme
     if user.is_admin:
         admin_count = User.query.filter_by(is_admin=True, is_active=True).count()
-        # Kullanıcı aktif olmasa bile, yine de genel admin sayısını kontrol edelim
         if admin_count <= 1:
             return redirect(url_for(
                 "users",
@@ -344,11 +347,26 @@ def index():
 @login_required
 def books():
     all_books = Book.query.order_by(Book.id).all()
+
+    # Kullanıcıya göre kaç kitap eklenmiş?
+    raw_counts = (
+        db.session.query(Book.created_by, func.count(Book.id))
+        .group_by(Book.created_by)
+        .all()
+    )
+    user_counts = []
+    for username, count in raw_counts:
+        user_counts.append({
+            "username": username or "Belirtilmemiş",
+            "count": count
+        })
+
     return render_template(
         "books.html",
         books=all_books,
         success=None,
         error=None,
+        user_counts=user_counts,
     )
 
 
@@ -361,21 +379,27 @@ def add_book():
 
     kitap_barkod = ""
     kitap_adi = ""
+    yazar = ""
     bolumu = ""
     statusu = ""
     odunc_durumu = ""  # YerNumarası
 
     last_kitap_barkod = None
     last_kitap_adi = None
+    last_yazar = None
     last_bolumu = None
     last_statusu = None
     last_odunc_durumu = None
+
+    total_books = Book.query.count()
+    current_user = get_current_user()
 
     if request.method == "POST":
         action = request.form.get("action", "save")
 
         kitap_barkod = request.form.get("kitap_barkod", "").strip()
         kitap_adi = request.form.get("kitap_adi", "").strip()
+        yazar = request.form.get("yazar", "").strip()
         bolumu = request.form.get("bolumu", "").strip()
         statusu = request.form.get("statusu", "").strip()
         odunc_durumu = request.form.get("odunc_durumu", "").strip()
@@ -390,14 +414,17 @@ def add_book():
                     warning=warning,
                     kitap_barkod=kitap_barkod,
                     kitap_adi=kitap_adi,
+                    yazar=yazar,
                     bolumu=bolumu,
                     statusu=statusu,
                     odunc_durumu=odunc_durumu,
                     last_kitap_barkod=last_kitap_barkod,
                     last_kitap_adi=last_kitap_adi,
+                    last_yazar=last_yazar,
                     last_bolumu=last_bolumu,
                     last_statusu=last_statusu,
                     last_odunc_durumu=last_odunc_durumu,
+                    total_books=total_books,
                 )
 
             existing = Book.query.filter_by(kitap_barkod=kitap_barkod).first()
@@ -406,12 +433,14 @@ def add_book():
                 warning = "Kitabı kontrol ediniz."
 
                 kitap_adi = existing.kitap_adi
+                yazar = existing.yazar or ""
                 bolumu = existing.bolumu or ""
                 statusu = existing.statusu or ""
                 odunc_durumu = existing.odunc_durumu or ""
 
                 last_kitap_barkod = existing.kitap_barkod
                 last_kitap_adi = existing.kitap_adi
+                last_yazar = existing.yazar
                 last_bolumu = existing.bolumu
                 last_statusu = existing.statusu
                 last_odunc_durumu = existing.odunc_durumu
@@ -423,14 +452,17 @@ def add_book():
                     warning=warning,
                     kitap_barkod=kitap_barkod,
                     kitap_adi=kitap_adi,
+                    yazar=yazar,
                     bolumu=bolumu,
                     statusu=statusu,
                     odunc_durumu=odunc_durumu,
                     last_kitap_barkod=last_kitap_barkod,
                     last_kitap_adi=last_kitap_adi,
+                    last_yazar=last_yazar,
                     last_bolumu=last_bolumu,
                     last_statusu=last_statusu,
                     last_odunc_durumu=last_odunc_durumu,
+                    total_books=total_books,
                 )
 
             info = find_book_from_master(kitap_barkod)
@@ -443,17 +475,21 @@ def add_book():
                     warning=warning,
                     kitap_barkod=kitap_barkod,
                     kitap_adi=kitap_adi,
+                    yazar=yazar,
                     bolumu=bolumu,
                     statusu=statusu,
                     odunc_durumu=odunc_durumu,
                     last_kitap_barkod=last_kitap_barkod,
                     last_kitap_adi=last_kitap_adi,
+                    last_yazar=last_yazar,
                     last_bolumu=last_bolumu,
                     last_statusu=last_statusu,
                     last_odunc_durumu=last_odunc_durumu,
+                    total_books=total_books,
                 )
 
             kitap_adi = info.get("KitapAdı", "") or ""
+            yazar = info.get("Yazar", "") or ""
             bolumu = info.get("Bölümü", "") or ""
             statusu = info.get("Statüsü", "") or ""
             odunc_durumu = info.get("YerNumarası", "") or ""
@@ -473,20 +509,27 @@ def add_book():
             book = Book(
                 kitap_barkod=kitap_barkod,
                 kitap_adi=kitap_adi,
+                yazar=yazar,
                 bolumu=bolumu,
                 statusu=statusu,
                 odunc_durumu=odunc_durumu,
+                created_by=current_user.username if current_user else None,
             )
             db.session.add(book)
             db.session.commit()
+            total_books = Book.query.count()
 
             success = "Kitap otomatik olarak eklendi."
 
             last_kitap_barkod = kitap_barkod
             last_kitap_adi = kitap_adi
+            last_yazar = yazar
             last_bolumu = bolumu
             last_statusu = statusu
             last_odunc_durumu = odunc_durumu
+
+            # Barkod kutusu yeni okutma için boş gelsin
+            kitap_barkod = ""
 
             return render_template(
                 "add_book.html",
@@ -495,16 +538,20 @@ def add_book():
                 warning=warning,
                 kitap_barkod=kitap_barkod,
                 kitap_adi=kitap_adi,
+                yazar=yazar,
                 bolumu=bolumu,
                 statusu=statusu,
                 odunc_durumu=odunc_durumu,
                 last_kitap_barkod=last_kitap_barkod,
                 last_kitap_adi=last_kitap_adi,
+                last_yazar=last_yazar,
                 last_bolumu=last_bolumu,
                 last_statusu=last_statusu,
                 last_odunc_durumu=last_odunc_durumu,
+                total_books=total_books,
             )
 
+        # Elle kaydet
         if not kitap_barkod or not kitap_adi:
             error = "En azından KitapBarkod ve KitapAdı alanları zorunludur!"
             return render_template(
@@ -514,14 +561,17 @@ def add_book():
                 warning=warning,
                 kitap_barkod=kitap_barkod,
                 kitap_adi=kitap_adi,
+                yazar=yazar,
                 bolumu=bolumu,
                 statusu=statusu,
                 odunc_durumu=odunc_durumu,
                 last_kitap_barkod=last_kitap_barkod,
                 last_kitap_adi=last_kitap_adi,
+                last_yazar=last_yazar,
                 last_bolumu=last_bolumu,
                 last_statusu=last_statusu,
                 last_odunc_durumu=last_odunc_durumu,
+                total_books=total_books,
             )
 
         existing = Book.query.filter_by(kitap_barkod=kitap_barkod).first()
@@ -531,6 +581,7 @@ def add_book():
 
             last_kitap_barkod = existing.kitap_barkod
             last_kitap_adi = existing.kitap_adi
+            last_yazar = existing.yazar
             last_bolumu = existing.bolumu
             last_statusu = existing.statusu
             last_odunc_durumu = existing.odunc_durumu
@@ -542,32 +593,42 @@ def add_book():
                 warning=warning,
                 kitap_barkod=kitap_barkod,
                 kitap_adi=kitap_adi,
+                yazar=yazar,
                 bolumu=bolumu,
                 statusu=statusu,
                 odunc_durumu=odunc_durumu,
                 last_kitap_barkod=last_kitap_barkod,
                 last_kitap_adi=last_kitap_adi,
+                last_yazar=last_yazar,
                 last_bolumu=last_bolumu,
                 last_statusu=last_statusu,
                 last_odunc_durumu=last_odunc_durumu,
+                total_books=total_books,
             )
 
         book = Book(
             kitap_barkod=kitap_barkod,
             kitap_adi=kitap_adi,
+            yazar=yazar,
             bolumu=bolumu,
             statusu=statusu,
             odunc_durumu=odunc_durumu,
+            created_by=current_user.username if current_user else None,
         )
         db.session.add(book)
         db.session.commit()
+        total_books = Book.query.count()
 
         success = "Kitap elle girilerek eklendi."
+
         last_kitap_barkod = kitap_barkod
         last_kitap_adi = kitap_adi
+        last_yazar = yazar
         last_bolumu = bolumu
         last_statusu = statusu
         last_odunc_durumu = odunc_durumu
+
+        kitap_barkod = ""
 
         return render_template(
             "add_book.html",
@@ -576,16 +637,20 @@ def add_book():
             warning=warning,
             kitap_barkod=kitap_barkod,
             kitap_adi=kitap_adi,
+            yazar=yazar,
             bolumu=bolumu,
             statusu=statusu,
             odunc_durumu=odunc_durumu,
             last_kitap_barkod=last_kitap_barkod,
             last_kitap_adi=last_kitap_adi,
+            last_yazar=last_yazar,
             last_bolumu=last_bolumu,
             last_statusu=last_statusu,
             last_odunc_durumu=last_odunc_durumu,
+            total_books=total_books,
         )
 
+    # GET isteği
     return render_template(
         "add_book.html",
         error=error,
@@ -593,14 +658,17 @@ def add_book():
         warning=warning,
         kitap_barkod=kitap_barkod,
         kitap_adi=kitap_adi,
+        yazar=yazar,
         bolumu=bolumu,
         statusu=statusu,
         odunc_durumu=odunc_durumu,
         last_kitap_barkod=last_kitap_barkod,
         last_kitap_adi=last_kitap_adi,
+        last_yazar=last_yazar,
         last_bolumu=last_bolumu,
         last_statusu=last_statusu,
         last_odunc_durumu=last_odunc_durumu,
+        total_books=total_books,
     )
 
 
@@ -611,6 +679,8 @@ def delete_last(kitap_barkod):
     success = None
     warning = None
 
+    total_books = Book.query.count()
+
     if not kitap_barkod:
         error = "Silinecek KitapBarkod bulunamadı."
         return render_template(
@@ -620,14 +690,17 @@ def delete_last(kitap_barkod):
             warning=warning,
             kitap_barkod="",
             kitap_adi="",
+            yazar="",
             bolumu="",
             statusu="",
             odunc_durumu="",
             last_kitap_barkod=None,
             last_kitap_adi=None,
+            last_yazar=None,
             last_bolumu=None,
             last_statusu=None,
             last_odunc_durumu=None,
+            total_books=total_books,
         )
 
     book = Book.query.filter_by(kitap_barkod=kitap_barkod).first()
@@ -641,18 +714,22 @@ def delete_last(kitap_barkod):
             warning=warning,
             kitap_barkod="",
             kitap_adi="",
+            yazar="",
             bolumu="",
             statusu="",
             odunc_durumu="",
             last_kitap_barkod=None,
             last_kitap_adi=None,
+            last_yazar=None,
             last_bolumu=None,
             last_statusu=None,
             last_odunc_durumu=None,
+            total_books=total_books,
         )
 
     db.session.delete(book)
     db.session.commit()
+    total_books = Book.query.count()
 
     success = f"{kitap_barkod} KitapBarkod'lu kitap silindi."
 
@@ -663,14 +740,17 @@ def delete_last(kitap_barkod):
         warning=warning,
         kitap_barkod="",
         kitap_adi="",
+        yazar="",
         bolumu="",
         statusu="",
         odunc_durumu="",
         last_kitap_barkod=None,
         last_kitap_adi=None,
+        last_yazar=None,
         last_bolumu=None,
         last_statusu=None,
         last_odunc_durumu=None,
+        total_books=total_books,
     )
 
 
@@ -690,7 +770,21 @@ def reset_count():
         error = f"Sayım sıfırlanırken bir hata oluştu: {e}"
 
     all_books = Book.query.order_by(Book.id).all()
-    return render_template("books.html", books=all_books, success=success, error=error)
+
+    # Kullanıcı bazlı sayılar da tekrar hesaplanmalı
+    raw_counts = (
+        db.session.query(Book.created_by, func.count(Book.id))
+        .group_by(Book.created_by)
+        .all()
+    )
+    user_counts = []
+    for username, count in raw_counts:
+        user_counts.append({
+            "username": username or "Belirtilmemiş",
+            "count": count
+        })
+
+    return render_template("books.html", books=all_books, success=success, error=error, user_counts=user_counts)
 
 
 @app.route("/export-books")
@@ -704,12 +798,14 @@ def export_books():
             "ID": b.id,
             "KitapBarkod": b.kitap_barkod,
             "KitapAdı": b.kitap_adi,
+            "Yazar": b.yazar,
             "Bölümü": b.bolumu,
             "Statüsü": b.statusu,
             "YerNumarası": b.odunc_durumu,
+            "EkleyenKullanıcı": b.created_by,
         })
 
-    columns = ["ID", "KitapBarkod", "KitapAdı", "Bölümü", "Statüsü", "YerNumarası"]
+    columns = ["ID", "KitapBarkod", "KitapAdı", "Yazar", "Bölümü", "Statüsü", "YerNumarası", "EkleyenKullanıcı"]
     df = pd.DataFrame(data, columns=columns)
 
     output = io.BytesIO()
@@ -731,6 +827,7 @@ def download_template():
     columns = [
         "KitapBarkod",
         "KitapAdı",
+        "Yazar",
         "Bölümü",
         "Statüsü",
         "YerNumarası",
@@ -762,6 +859,7 @@ def upload_master():
         required_cols = [
             "KitapBarkod",
             "KitapAdı",
+            "Yazar",
             "Bölümü",
             "Statüsü",
             "YerNumarası",
@@ -771,7 +869,7 @@ def upload_master():
             if col not in df.columns:
                 return redirect(url_for(
                     "index",
-                    upload_error="Excel dosyasında şu sütunlar tam olarak bu isimlerle bulunmalıdır: KitapBarkod, KitapAdı, Bölümü, Statüsü, YerNumarası.",
+                    upload_error="Excel dosyasında şu sütunlar tam olarak bu isimlerle bulunmalıdır: KitapBarkod, KitapAdı, Yazar, Bölümü, Statüsü, YerNumarası.",
                     upload_success=""
                 ))
 
@@ -797,6 +895,67 @@ def upload_master():
         ))
 
 
+# ===================== KİTAP ARA (GENEL LİSTEDE KİTAP ADINA GÖRE) =====================
+
+@app.route("/search", methods=["GET", "POST"])
+@login_required
+def search():
+    """
+    genel_liste.csv içindeki KitapAdı sütununda,
+    kullanıcının yazdığı kelimeyi (büyük-küçük harf duyarsız) arar.
+    Eşleşen satırları tablo halinde göstermek için search.html'e gönderir.
+    """
+    error = None
+    results = []
+    query = ""
+
+    user = get_current_user()
+
+    # Genel liste yoksa uyar
+    if not os.path.exists(MASTER_LIST_PATH):
+        error = "Genel liste (genel_liste.csv) bulunamadı. Önce ana listeden dosya yükleyin."
+        return render_template(
+            "search.html",
+            error=error,
+            results=results,
+            query=query,
+            current_username=user.username if user else "",
+        )
+
+    if request.method == "POST":
+        query = request.form.get("query", "").strip()
+
+        if not query:
+            error = "Lütfen aramak istediğiniz kelimeyi yazın."
+        else:
+            try:
+                df = pd.read_csv(MASTER_LIST_PATH, dtype=str)
+                df = df.fillna("")
+
+                # Eski dosyalarda Yazar sütunu yoksa, boş olarak ekle
+                if "Yazar" not in df.columns:
+                    df["Yazar"] = ""
+
+                mask = df["KitapAdı"].astype(str).str.contains(query, case=False, na=False)
+                filtered = df[mask]
+
+                if filtered.empty:
+                    error = "Aramanıza uygun kitap bulunamadı."
+                else:
+                    results = filtered.to_dict(orient="records")
+
+            except Exception as e:
+                error = f"Genel liste okunurken bir hata oluştu: {e}"
+
+    return render_template(
+        "search.html",
+        error=error,
+        results=results,
+        query=query,
+        current_username=user.username if user else "",
+    )
+
+
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
@@ -804,6 +963,20 @@ if __name__ == "__main__":
         # SQLite tablosuna is_active sütunu ekli mi emin ol (mevcut DB'yi bozmamak için)
         try:
             db.session.execute(text("ALTER TABLE user ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        # Book tablosuna created_by sütunu ekli mi emin ol
+        try:
+            db.session.execute(text("ALTER TABLE book ADD COLUMN created_by VARCHAR(50)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        # Book tablosuna yazar sütunu ekli mi emin ol
+        try:
+            db.session.execute(text("ALTER TABLE book ADD COLUMN yazar VARCHAR(200)"))
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -816,5 +989,4 @@ if __name__ == "__main__":
             db.session.commit()
             print("İlk admin kullanıcısı oluşturuldu. Kullanıcı adı: admin, Şifre: admin123")
 
-    # Sunucuyu dış dünyaya açarken host="0.0.0.0" kullanabilirsin
     app.run(host="0.0.0.0", port=5000, debug=True)
