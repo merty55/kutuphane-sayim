@@ -122,8 +122,7 @@
         }
 
         .btn-primary,
-        .btn-danger,
-        .btn-secondary {
+        .btn-danger {
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -151,14 +150,6 @@
         }
         .btn-danger:hover {
             background: #c62828;
-            transform: translateY(-1px);
-        }
-
-        .btn-secondary {
-            background: #455a64;
-        }
-        .btn-secondary:hover {
-            background: #263238;
             transform: translateY(-1px);
         }
 
@@ -247,58 +238,50 @@
             margin-top: 4px;
         }
 
-        /* 📷 Kamera kartı ve önizleme alanı */
-        .camera-card {
+        /* Kamera alanı stilleri */
+        .camera-title {
+            font-size: 15px;
             margin-top: 14px;
+            margin-bottom: 4px;
         }
 
-        .camera-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+        .camera-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 0;
             margin-bottom: 8px;
         }
 
-        .camera-badge {
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 999px;
-            background: #e0f2f1;
-            color: #004d40;
+        .camera-area {
+            margin-top: 6px;
         }
 
-        .camera-preview {
-            width: 100%;
-            height: 260px;
-            background: #000;
+        .camera-video-wrapper {
+            margin-top: 6px;
             border-radius: 10px;
             overflow: hidden;
-            position: relative;
+            background: #000;
+            max-height: 260px;
         }
 
-        .camera-preview video {
+        #barcode-video {
             width: 100%;
-            height: 100%;
-            object-fit: cover;
+            display: block;
         }
 
-        .camera-overlay {
-            position: absolute;
-            inset: 0;
-            border: 2px dashed rgba(255,255,255,0.6);
-            border-radius: 12px;
-            margin: 24px;
-            pointer-events: none;
+        .btn-camera {
+            margin-top: 4px;
+            margin-bottom: 4px;
         }
 
-        .camera-footer {
-            margin-top: 6px;
-            font-size: 11px;
-            color: var(--text-muted);
+        #scan-status,
+        #scan-warning {
+            font-size: 12px;
+            margin-top: 4px;
         }
 
-        .hidden {
-            display: none !important;
+        #scan-warning {
+            color: #d84315;
         }
     </style>
 </head>
@@ -316,11 +299,12 @@
 
 <div class="container">
     <h1>Barkod Okut</h1>
-    <p class="subtitle">Barkod okuyucunuz barkodu okutup otomatik Enter gönderdiğinde veya telefon kameranızla okuttuğunuzda kitap bilgileri genel listeden çekilerek kaydedilir.</p>
+    <p class="subtitle">Barkod okuyucunuz barkodu okutup otomatik Enter gönderdiğinde kitap bilgileri genel listeden çekilerek kaydedilir.</p>
 
     <!-- 📊 TOPLAM KİTAP SAYACI -->
     <div class="alert alert-success">
-        Toplam kayıtlı kitap sayısı: <strong>{{ total_books }}</strong>
+        Toplam kayıtlı kitap sayısı:
+        <strong id="total-books-span">{{ total_books }}</strong>
     </div>
 
     {% if error %}
@@ -340,14 +324,7 @@
                     <label for="kitap_barkod">KitapBarkod</label>
                     <input type="text" id="kitap_barkod" name="kitap_barkod"
                            value="{{ kitap_barkod or '' }}" autocomplete="off">
-                    <div class="hint">Barkod okuyucuyu kullanın veya aşağıdan kamerayı açın. Enter ile otomatik getir &amp; kaydet.</div>
-
-                    <!-- 📷 Kamera ile barkod okuma butonu -->
-                    <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
-                        <button type="button" id="cameraToggleBtn" class="btn-secondary">
-                            📷 Kamerayla Barkod Oku
-                        </button>
-                    </div>
+                    <div class="hint">Barkod okuyucuyu kullanın. Enter ile otomatik getir &amp; kaydet.</div>
                 </div>
 
                 <div class="form-group">
@@ -380,33 +357,29 @@
                     Kaydet (Elle Giriş)
                 </button>
             </form>
-
-            <!-- 📷 Kamera kartı (başta gizli) -->
-            <div id="cameraCard" class="card camera-card hidden">
-                <div class="camera-header">
-                    <h2 style="font-size:16px; margin:0;">Kamera ile Barkod Okuma</h2>
-                    <span class="camera-badge" id="cameraStatusBadge">Kamera kapalı</span>
-                </div>
-                <div id="cameraError" class="alert alert-error hidden" style="margin-bottom:8px;"></div>
-                <div id="cameraPreview" class="camera-preview">
-                    <!-- QuaggaJS video akışı buraya yerleşecek -->
-                    <div class="camera-overlay"></div>
-                </div>
-                <div class="camera-footer">
-                    Kamerayı açtığınızda barkodu çerçeve içine getirmeniz yeterlidir. Barkod okununca otomatik olarak eklenir.
-                </div>
-            </div>
         </div>
 
         <div class="card">
             <h2>Son Eklenen Kitap</h2>
             {% if last_kitap_barkod %}
                 <div class="last-book">
-                    <div class="last-book-title">{{ last_kitap_adi }}</div>
-                    <p class="last-book-item"><span>KitapBarkod:</span> {{ last_kitap_barkod }}</p>
-                    <p class="last-book-item"><span>Bölümü:</span> {{ last_bolumu }}</p>
-                    <p class="last-book-item"><span>Statüsü:</span> {{ last_statusu }}</p>
-                    <p class="last-book-item"><span>YerNumarası:</span> {{ last_odunc_durumu }}</p>
+                    <div class="last-book-title" id="last-book-title">{{ last_kitap_adi }}</div>
+                    <p class="last-book-item">
+                        <span>KitapBarkod:</span>
+                        <span id="last-book-barkod">{{ last_kitap_barkod }}</span>
+                    </p>
+                    <p class="last-book-item">
+                        <span>Bölümü:</span>
+                        <span id="last-book-bolum">{{ last_bolumu }}</span>
+                    </p>
+                    <p class="last-book-item">
+                        <span>Statüsü:</span>
+                        <span id="last-book-status">{{ last_statusu }}</span>
+                    </p>
+                    <p class="last-book-item">
+                        <span>YerNumarası:</span>
+                        <span id="last-book-yer">{{ last_odunc_durumu }}</span>
+                    </p>
                 </div>
 
                 <form method="post" action="{{ url_for('delete_last', kitap_barkod=last_kitap_barkod) }}"
@@ -417,10 +390,51 @@
                     </button>
                 </form>
             {% else %}
-                <p style="font-size:13px;color:var(--text-muted);">
-                    Henüz kayıtlı kitap yok veya bu oturumda yeni eklenmiş bir kitap bulunmuyor.
-                </p>
+                <div class="last-book">
+                    <div class="last-book-title" id="last-book-title"></div>
+                    <p class="last-book-item" id="last-book-empty-text"
+                       style="font-size:13px;color:var(--text-muted);margin:4px 0;">
+                        Henüz kayıtlı kitap yok veya bu oturumda yeni eklenmiş bir kitap bulunmuyor.
+                    </p>
+                    <p class="last-book-item" style="display:none;">
+                        <span>KitapBarkod:</span>
+                        <span id="last-book-barkod"></span>
+                    </p>
+                    <p class="last-book-item" style="display:none;">
+                        <span>Bölümü:</span>
+                        <span id="last-book-bolum"></span>
+                    </p>
+                    <p class="last-book-item" style="display:none;">
+                        <span>Statüsü:</span>
+                        <span id="last-book-status"></span>
+                    </p>
+                    <p class="last-book-item" style="display:none;">
+                        <span>YerNumarası:</span>
+                        <span id="last-book-yer"></span>
+                    </p>
+                </div>
             {% endif %}
+
+            <!-- Kamera ile barkod okuma bölümü -->
+            <hr style="margin:14px 0 10px;border:none;border-top:1px solid #e0e0e0;">
+            <h3 class="camera-title">Kamera ile Barkod Okuma</h3>
+            <p class="camera-hint">
+                Telefon veya bilgisayar kameranızı kullanarak arka arkaya barkod okutabilirsiniz.
+                Kamera açık kaldığı sürece okunan her barkod otomatik kaydedilir.
+            </p>
+            <button type="button" class="btn-primary btn-camera" id="toggle-camera-btn">
+                Kamerayı Aç
+            </button>
+
+            <div class="camera-area" id="camera-area" style="display:none;">
+                <div class="camera-video-wrapper">
+                    <video id="barcode-video" autoplay muted playsinline></video>
+                </div>
+                <div class="hint" id="scan-status">
+                    Kamera açıkken barkodu görüntü alanına getirmeniz yeterlidir.
+                </div>
+                <div class="hint" id="scan-warning"></div>
+            </div>
         </div>
     </div>
 
@@ -435,6 +449,9 @@
     {% endif %}
 </div>
 
+<!-- Quagga2: Tarayıcı içi barkod okuma kütüphanesi -->
+<script src="https://unpkg.com/@ericblade/quagga2@1.2.6/dist/quagga.js"></script>
+
 <script>
     function closeWarning() {
         const overlay = document.querySelector('.warning-overlay');
@@ -443,7 +460,6 @@
         }
     }
 
-    // Sayfa yüklendiğinde barkod inputuna odaklan
     window.addEventListener('load', function () {
         const barkodInput = document.getElementById('kitap_barkod');
         if (barkodInput) {
@@ -452,7 +468,6 @@
         }
     });
 
-    // Fiziksel barkod okuyucu ile Enter'a basınca lookup çalışsın
     const barkodInput = document.getElementById('kitap_barkod');
     const form = document.getElementById('bookForm');
     if (barkodInput && form) {
@@ -465,208 +480,208 @@
         });
     }
 
-    // 📷 Kamera ile barkod okuma - QuaggaJS entegrasyonu
-    let scannerActive = false;
-    let quaggaLoaded = false;
-    let onDetectedHandler = null;
+    // ================== KAMERA & BARKOD OKUMA (Sürekli) ==================
 
-    const cameraCard = document.getElementById('cameraCard');
-    const cameraToggleBtn = document.getElementById('cameraToggleBtn');
-    const cameraStatusBadge = document.getElementById('cameraStatusBadge');
-    const cameraErrorBox = document.getElementById('cameraError');
-    const cameraPreview = document.getElementById('cameraPreview');
+    let cameraEnabled = false;
+    let lastScannedCode = null;
+    let lastScannedTime = 0;
 
-    function setCameraStatus(text, isActive) {
-        if (!cameraStatusBadge) return;
-        cameraStatusBadge.textContent = text;
-        if (isActive) {
-            cameraStatusBadge.style.background = '#ffebee';
-            cameraStatusBadge.style.color = '#b71c1c';
-        } else {
-            cameraStatusBadge.style.background = '#e0f2f1';
-            cameraStatusBadge.style.color = '#004d40';
+    function updateLastBookAreaFromData(book) {
+        if (!book) return;
+
+        const emptyText = document.getElementById('last-book-empty-text');
+        if (emptyText) {
+            emptyText.style.display = 'none';
         }
+
+        const titleEl  = document.getElementById('last-book-title');
+        const barkodEl = document.getElementById('last-book-barkod');
+        const bolumEl  = document.getElementById('last-book-bolum');
+        const statusEl = document.getElementById('last-book-status');
+        const yerEl    = document.getElementById('last-book-yer');
+
+        if (titleEl)  titleEl.textContent  = book.kitap_adi || '';
+        if (barkodEl) barkodEl.textContent = book.kitap_barkod || '';
+        if (bolumEl)  bolumEl.textContent  = book.bolumu || '';
+        if (statusEl) statusEl.textContent = book.statusu || '';
+        if (yerEl)    yerEl.textContent    = book.odunc_durumu || '';
     }
 
-    function showCameraError(msg) {
-        if (!cameraErrorBox) return;
-        cameraErrorBox.textContent = msg;
-        cameraErrorBox.classList.remove('hidden');
-    }
+    function handleScannedBarcode(barcode) {
+        const statusEl  = document.getElementById('scan-status');
+        const warnEl    = document.getElementById('scan-warning');
+        const totalSpan = document.getElementById('total-books-span');
 
-    function clearCameraError() {
-        if (!cameraErrorBox) return;
-        cameraErrorBox.textContent = '';
-        cameraErrorBox.classList.add('hidden');
-    }
-
-    function loadQuagga(callback) {
-        if (window.Quagga) {
-            quaggaLoaded = true;
-            callback();
-            return;
+        if (warnEl) warnEl.textContent = '';
+        if (statusEl) {
+            statusEl.textContent = "Okunan barkod: " + barcode + " işleniyor...";
         }
-        const existingScript = document.getElementById('quagga-script');
-        if (existingScript) {
-            existingScript.addEventListener('load', function () {
-                quaggaLoaded = true;
-                callback();
-            });
-            return;
+
+        // Görsel olarak barkod alanında da göster
+        if (barkodInput) {
+            barkodInput.value = barcode;
         }
-        const script = document.createElement('script');
-        script.id = 'quagga-script';
-        script.src = 'https://unpkg.com/quagga@0.12.1/dist/quagga.min.js';
-        script.async = true;
-        script.onload = function () {
-            quaggaLoaded = true;
-            callback();
-        };
-        script.onerror = function () {
-            showCameraError('Kamera kütüphanesi yüklenirken bir hata oluştu.');
-            setCameraStatus('Kamera kapalı', false);
-            scannerActive = false;
-            if (cameraToggleBtn) {
-                cameraToggleBtn.textContent = '📷 Kamerayla Barkod Oku';
-            }
-        };
-        document.body.appendChild(script);
-    }
 
-    function startScanner() {
-        if (!cameraCard || !cameraPreview) return;
-
-        clearCameraError();
-        cameraCard.classList.remove('hidden');
-        setCameraStatus('Kamera açılıyor...', true);
-
-        loadQuagga(function () {
-            if (!window.Quagga) {
-                showCameraError('Kamera kütüphanesi yüklenemedi.');
-                setCameraStatus('Kamera kapalı', false);
+        fetch("{{ url_for('api_scan_add_book') }}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ barcode: barcode })
+        })
+        .then(response => response.json().then(data => ({ ok: response.ok, data })))
+        .then(({ ok, data }) => {
+            if (!ok || !data) {
+                if (statusEl) {
+                    statusEl.textContent = "Kayıt sırasında bir hata oluştu.";
+                }
                 return;
             }
 
-            try {
-                window.Quagga.init({
-                    inputStream: {
-                        type: 'LiveStream',
-                        target: cameraPreview,
-                        constraints: {
-                            facingMode: 'environment'
-                        }
-                    },
-                    decoder: {
-                        readers: ['ean_reader', 'ean_8_reader', 'code_128_reader']
-                    },
-                    locate: true
-                }, function (err) {
-                    if (err) {
-                        console.error(err);
-                        showCameraError('Kamera başlatılırken bir hata oluştu: ' + err.message);
-                        setCameraStatus('Kamera kapalı', false);
-                        scannerActive = false;
-                        if (cameraToggleBtn) {
-                            cameraToggleBtn.textContent = '📷 Kamerayla Barkod Oku';
-                        }
-                        return;
+            if (data.total_books !== undefined && totalSpan) {
+                totalSpan.textContent = data.total_books;
+            }
+
+            if (data.book) {
+                updateLastBookAreaFromData(data.book);
+            }
+
+            if (data.success) {
+                if (data.status === "added") {
+                    if (statusEl) {
+                        statusEl.textContent = "✓ " + (data.message || "Kitap otomatik olarak eklendi.")
+                            + " (" + (data.book && data.book.kitap_barkod ? data.book.kitap_barkod : barcode) + ")";
                     }
-
-                    window.Quagga.start();
-                    scannerActive = true;
-                    setCameraStatus('Kamera açık - Barkodu çerçeveye getiriniz', true);
-                    if (cameraToggleBtn) {
-                        cameraToggleBtn.textContent = 'Kamerayı Kapat';
+                } else if (data.status === "exists") {
+                    if (statusEl) {
+                        statusEl.textContent = "ℹ " + (data.message || "Bu kitap zaten kayıtlı.")
+                            + " (" + (data.book && data.book.kitap_barkod ? data.book.kitap_barkod : barcode) + ")";
                     }
-
-                    let lastScanned = null;
-
-                    onDetectedHandler = function (result) {
-                        if (!result || !result.codeResult || !result.codeResult.code) {
-                            return;
-                        }
-                        const code = result.codeResult.code.trim();
-                        if (!code) return;
-
-                        // Aynı barkodu tekrar tekrar okumayı engellemek için küçük bir kontrol:
-                        if (lastScanned === code) {
-                            return;
-                        }
-                        lastScanned = code;
-
-                        const barkodInput = document.getElementById('kitap_barkod');
-                        const form = document.getElementById('bookForm');
-                        const actionInput = document.getElementById('actionInput');
-
-                        if (barkodInput && form && actionInput) {
-                            barkodInput.value = code;
-                            actionInput.value = 'lookup';
-                            stopScanner();  // Kamerayı kapat
-                            form.submit();  // Normal lookup akışını çalıştır
-                        }
-                    };
-
-                    window.Quagga.onDetected(onDetectedHandler);
-                });
-            } catch (e) {
-                console.error(e);
-                showCameraError('Kamera başlatılırken beklenmeyen bir hata oluştu.');
-                setCameraStatus('Kamera kapalı', false);
-                scannerActive = false;
-                if (cameraToggleBtn) {
-                    cameraToggleBtn.textContent = '📷 Kamerayla Barkod Oku';
+                } else {
+                    if (statusEl) {
+                        statusEl.textContent = data.message || "";
+                    }
                 }
+
+                if (warnEl && data.warning) {
+                    warnEl.textContent = data.warning;
+                }
+            } else {
+                if (statusEl) {
+                    statusEl.textContent = data.message || "Kayıt başarısız.";
+                }
+                if (data.status === "not_found" && warnEl) {
+                    warnEl.textContent = "Genel listede bulunamadı. Gerekirse alanları doldurup elle ekleyebilirsiniz.";
+                }
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            if (statusEl) {
+                statusEl.textContent = "Sunucuya bağlanırken bir hata oluştu.";
             }
         });
     }
 
-    function stopScanner() {
+    function initQuagga() {
+        const cameraArea = document.getElementById('camera-area');
+        const statusEl = document.getElementById('scan-status');
+
         if (!window.Quagga) {
-            scannerActive = false;
-            setCameraStatus('Kamera kapalı', false);
-            if (cameraToggleBtn) {
-                cameraToggleBtn.textContent = '📷 Kamerayla Barkod Oku';
-            }
+            alert("Kamera kütüphanesi yüklenemedi. İnternet bağlantınızı kontrol edin.");
             return;
         }
 
-        try {
-            window.Quagga.stop();
-            if (onDetectedHandler) {
-                window.Quagga.offDetected(onDetectedHandler);
-                onDetectedHandler = null;
-            }
-        } catch (e) {
-            console.warn('Quagga stop error:', e);
-        }
+        if (!cameraArea) return;
 
-        scannerActive = false;
-        setCameraStatus('Kamera kapalı', false);
-        if (cameraToggleBtn) {
-            cameraToggleBtn.textContent = '📷 Kamerayla Barkod Oku';
-        }
-    }
+        cameraArea.style.display = 'block';
 
-    if (cameraToggleBtn) {
-        cameraToggleBtn.addEventListener('click', function () {
-            // İlk tıklamada kartı görünür yapalım
-            if (cameraCard.classList.contains('hidden')) {
-                cameraCard.classList.remove('hidden');
+        Quagga.init({
+            inputStream: {
+                type: "LiveStream",
+                target: document.querySelector('#barcode-video'),
+                constraints: {
+                    facingMode: "environment"
+                }
+            },
+            decoder: {
+                readers: [
+                    "ean_reader",
+                    "ean_13_reader",
+                    "code_128_reader",
+                    "upc_reader",
+                    "upc_e_reader"
+                ]
+            },
+            locate: true,
+            locateRadius: 0.5
+        }, function (err) {
+            if (err) {
+                console.error(err);
+                if (statusEl) {
+                    statusEl.textContent = "Kamera başlatılırken bir hata oluştu.";
+                }
+                return;
             }
+            Quagga.start();
+            cameraEnabled = true;
+            const btn = document.getElementById('toggle-camera-btn');
+            if (btn) {
+                btn.textContent = "Kamerayı Kapat";
+            }
+            if (statusEl) {
+                statusEl.textContent = "Kamera açık. Barkodu görüntü alanına getirin.";
+            }
+        });
 
-            if (!scannerActive) {
-                startScanner();
-            } else {
-                stopScanner();
+        Quagga.onDetected(function (result) {
+            if (!cameraEnabled) return;
+            if (!result || !result.codeResult || !result.codeResult.code) return;
+
+            const code = (result.codeResult.code || "").trim();
+            if (!code) return;
+
+            const now = Date.now();
+            // Aynı barkodu 1 saniye içinde tekrar tekrar okumasın
+            if (code === lastScannedCode && (now - lastScannedTime) < 1000) {
+                return;
             }
+            lastScannedCode = code;
+            lastScannedTime = now;
+
+            handleScannedBarcode(code);
         });
     }
 
-    // Sayfadan çıkarken kamerayı mutlaka durdur
-    window.addEventListener('beforeunload', function () {
-        if (scannerActive) {
-            stopScanner();
+    function stopQuagga() {
+        if (window.Quagga && cameraEnabled) {
+            Quagga.stop();
         }
+        cameraEnabled = false;
+        const btn = document.getElementById('toggle-camera-btn');
+        if (btn) {
+            btn.textContent = "Kamerayı Aç";
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const toggleBtn = document.getElementById('toggle-camera-btn');
+        const cameraArea = document.getElementById('camera-area');
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function () {
+                if (!cameraEnabled) {
+                    if (cameraArea) cameraArea.style.display = 'block';
+                    initQuagga();
+                } else {
+                    stopQuagga();
+                    if (cameraArea) cameraArea.style.display = 'none';
+                }
+            });
+        }
+    });
+
+    window.addEventListener('beforeunload', function () {
+        // Sayfadan çıkarken kamerayı mutlaka kapat
+        stopQuagga();
     });
 </script>
 </body>
