@@ -188,6 +188,54 @@
             color: #0d47a1;
         }
 
+        /* Sayfalama kartı */
+        .pagination-bar {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .pagination-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .pagination-summary strong {
+            color: var(--text-main);
+        }
+
+        .pagination-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .page-link {
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid #cfd8dc;
+            background: #fff;
+            font-size: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+        }
+
+        .page-link:hover {
+            border-color: var(--primary);
+            color: var(--primary-dark);
+        }
+
+        .page-link.current {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary-dark);
+            cursor: default;
+        }
+
         @media (max-width: 700px) {
             table {
                 font-size: 12px;
@@ -213,13 +261,46 @@
 
 <div class="container">
     <h1>Kitap Listesi</h1>
-    <p class="subtitle">Sayım sırasında okutulan tüm kitapların listesi. ID sütunu, okutma sırasını gösterir.</p>
+    <p class="subtitle">
+        Sayım sırasında okutulan tüm kitapların listesi. ID sütunu, okutma sırasını gösterir.
+        Listede her sayfada en fazla 100 kayıt görüntülenir.
+    </p>
 
     {% if error %}
         <div class="alert alert-error">{{ error }}</div>
     {% endif %}
     {% if success %}
         <div class="alert alert-success">{{ success }}</div>
+    {% endif %}
+
+    {# --- SAYFALAMA ÖZETİ --- #}
+    {% if total_books is not none %}
+        <div class="card">
+            <div class="pagination-bar">
+                <div class="pagination-summary">
+                    <span>Toplam <strong>{{ total_books }}</strong> kayıt</span>
+                    <span>•</span>
+                    <span>Sayfa <strong>{{ page }}</strong> / {{ total_pages }}</span>
+                    <span>•</span>
+                    <span>Sayfa başına <strong>{{ page_size }}</strong> kayıt</span>
+                </div>
+                {% if total_pages > 1 %}
+                    <div class="pagination-links">
+                        {% if page > 1 %}
+                            <a href="{{ url_for('books', page=1) }}" class="page-link">&laquo; İlk</a>
+                            <a href="{{ url_for('books', page=page-1) }}" class="page-link">&lsaquo; Önceki</a>
+                        {% endif %}
+
+                        <span class="page-link current">Sayfa {{ page }} / {{ total_pages }}</span>
+
+                        {% if page < total_pages %}
+                            <a href="{{ url_for('books', page=page+1) }}" class="page-link">Sonraki &rsaquo;</a>
+                            <a href="{{ url_for('books', page=total_pages) }}" class="page-link">Son &raquo;</a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
     {% endif %}
 
     {# --- KULLANICI BAZLI SAYIM ÖZETİ --- #}

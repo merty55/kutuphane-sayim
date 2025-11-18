@@ -52,11 +52,11 @@ class Book(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     kitap_barkod = db.Column(db.String(50), unique=True, nullable=False)
     kitap_adi = db.Column(db.String(300), nullable=False)
-    yazar = db.Column(db.String(200), nullable=True)          # YENİ: Yazar
+    yazar = db.Column(db.String(200), nullable=True)
     bolumu = db.Column(db.String(200), nullable=True)
     statusu = db.Column(db.String(100), nullable=True)
-    odunc_durumu = db.Column(db.String(200), nullable=True)   # YerNumarası
-    created_by = db.Column(db.String(50), nullable=True)      # EKLEYEN KULLANICI
+    odunc_durumu = db.Column(db.String(200), nullable=True)  # YerNumarası
+    created_by = db.Column(db.String(50), nullable=True)     # EKLEYEN KULLANICI
 
     def __repr__(self):
         return f"<Book {self.kitap_barkod} - {self.kitap_adi}>"
@@ -242,9 +242,9 @@ def create_user():
     db.session.commit()
 
     return redirect(url_for(
-        "index",
-        user_success="Yeni kullanıcı başarıyla oluşturuldu.",
-        user_error=""
+            "index",
+            user_success="Yeni kullanıcı başarıyla oluşturuldu.",
+            user_error=""
     ))
 
 
@@ -346,9 +346,31 @@ def index():
 @app.route("/books")
 @login_required
 def books():
-    all_books = Book.query.order_by(Book.id).all()
+    # Sayfa numarası (default 1)
+    page = request.args.get("page", 1, type=int)
+    page_size = 100
 
-    # Kullanıcıya göre kaç kitap eklenmiş?
+    base_query = Book.query.order_by(Book.id)
+    total_books = base_query.count()
+
+    # Toplam sayfa sayısı
+    total_pages = (total_books + page_size - 1) // page_size
+    if total_pages == 0:
+        total_pages = 1
+
+    # Sayfa sınırlarının dışına çıkılırsa 1. sayfaya düş
+    if page < 1 or page > total_pages:
+        page = 1
+
+    # İlgili sayfadaki kayıtlar
+    books_page = (
+        base_query
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+        .all()
+    )
+
+    # Kullanıcıya göre kaç kitap eklenmiş? (TÜM LİSTE ÜZERİNDEN)
     raw_counts = (
         db.session.query(Book.created_by, func.count(Book.id))
         .group_by(Book.created_by)
@@ -361,12 +383,19 @@ def books():
             "count": count
         })
 
+    success = request.args.get("success")
+    error = request.args.get("error")
+
     return render_template(
         "books.html",
-        books=all_books,
-        success=None,
-        error=None,
+        books=books_page,
+        success=success,
+        error=error,
         user_counts=user_counts,
+        total_books=total_books,
+        page=page,
+        total_pages=total_pages,
+        page_size=page_size,
     )
 
 
@@ -769,27 +798,32 @@ def reset_count():
         db.session.rollback()
         error = f"Sayım sıfırlanırken bir hata oluştu: {e}"
 
-    all_books = Book.query.order_by(Book.id).all()
+    # Tablodaki kayıtlar silindi, artık 0 kayıt var
+    total_books = 0
+    page = 1
+    total_pages = 1
+    page_size = 100
 
-    # Kullanıcı bazlı sayılar da tekrar hesaplanmalı
-    raw_counts = (
-        db.session.query(Book.created_by, func.count(Book.id))
-        .group_by(Book.created_by)
-        .all()
-    )
+    # Kullanıcı bazlı sayılar da sıfır (hiç kayıt yok)
     user_counts = []
-    for username, count in raw_counts:
-        user_counts.append({
-            "username": username or "Belirtilmemiş",
-            "count": count
-        })
 
-    return render_template("books.html", books=all_books, success=success, error=error, user_counts=user_counts)
+    return render_template(
+        "books.html",
+        books=[],
+        success=success,
+        error=error,
+        user_counts=user_counts,
+        total_books=total_books,
+        page=page,
+        total_pages=total_pages,
+        page_size=page_size,
+    )
 
 
 @app.route("/export-books")
 @login_required
 def export_books():
+    # TÜM KAYITLAR İNDİRİLİR (sayfalama yok)
     books = Book.query.order_by(Book.id).all()
 
     data = []
@@ -805,7 +839,16 @@ def export_books():
             "EkleyenKullanıcı": b.created_by,
         })
 
-    columns = ["ID", "KitapBarkod", "KitapAdı", "Yazar", "Bölümü", "Statüsü", "YerNumarası", "EkleyenKullanıcı"]
+    columns = [
+        "ID",
+        "KitapBarkod",
+        "KitapAdı",
+        "Yazar",
+        "Bölümü",
+        "Statüsü",
+        "YerNumarası",
+        "EkleyenKullanıcı",
+    ]
     df = pd.DataFrame(data, columns=columns)
 
     output = io.BytesIO()
@@ -869,7 +912,10 @@ def upload_master():
             if col not in df.columns:
                 return redirect(url_for(
                     "index",
-                    upload_error="Excel dosyasında şu sütunlar tam olarak bu isimlerle bulunmalıdır: KitapBarkod, KitapAdı, Yazar, Bölümü, Statüsü, YerNumarası.",
+                    upload_error=(
+                        "Excel dosyasında şu sütunlar tam olarak bu isimlerle bulunmalıdır: "
+                        "KitapBarkod, KitapAdı, Yazar, Bölümü, Statüsü, YerNumarası."
+                    ),
                     upload_success=""
                 ))
 
@@ -931,10 +977,6 @@ def search():
             try:
                 df = pd.read_csv(MASTER_LIST_PATH, dtype=str)
                 df = df.fillna("")
-
-                # Eski dosyalarda Yazar sütunu yoksa, boş olarak ekle
-                if "Yazar" not in df.columns:
-                    df["Yazar"] = ""
 
                 mask = df["KitapAdı"].astype(str).str.contains(query, case=False, na=False)
                 filtered = df[mask]
