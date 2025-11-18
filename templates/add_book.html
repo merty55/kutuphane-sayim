@@ -237,29 +237,6 @@
             color: var(--text-muted);
             margin-top: 4px;
         }
-
-        /* Kamera alanı küçük bir video çerçevesi şeklinde dursun */
-        #camera-area {
-            margin-top: 12px;
-        }
-
-        #barcode-video {
-            width: 100%;
-            max-height: 280px;
-            background: #000;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        #scan-status {
-            margin-top: 8px;
-        }
-
-        #scan-warning {
-            margin-top: 4px;
-            font-size: 12px;
-            color: #b71c1c;
-        }
     </style>
 </head>
 <body>
@@ -276,7 +253,7 @@
 
 <div class="container">
     <h1>Barkod Okut</h1>
-    <p class="subtitle">Barkod okuyucunuz barkodu okutup otomatik Enter gönderdiğinde veya kamerayı kullanarak barkod okuttuğunuzda, kitap bilgileri genel listeden çekilerek kaydedilir.</p>
+    <p class="subtitle">Barkod okuyucunuz barkodu okutup otomatik Enter gönderdiğinde kitap bilgileri genel listeden çekilerek kaydedilir.</p>
 
     <!-- 📊 TOPLAM KİTAP SAYACI -->
     <div class="alert alert-success">
@@ -290,24 +267,6 @@
         <div class="alert alert-success">{{ success }}</div>
     {% endif %}
 
-    <!-- 📷 KAMERA İLE BARKOD OKUMA KARTI -->
-    <div class="card" style="margin-bottom:18px;">
-        <h2>Kamera ile Barkod Oku</h2>
-        <p class="hint">
-            Telefon veya bilgisayar kameranızı kullanarak barkod okutabilirsiniz. Kamerayı açtıktan sonra
-            barkodu görüntü alanına getirmeniz yeterlidir, sistem otomatik olarak kitap kaydı yapar.
-        </p>
-        <button type="button" id="toggle-camera-btn" class="btn-primary">
-            Kamerayı Aç
-        </button>
-
-        <div id="camera-area" style="display:none;">
-            <div id="barcode-video"></div>
-            <p id="scan-status" class="hint">Kamera kapalı.</p>
-            <p id="scan-warning"></p>
-        </div>
-    </div>
-
     <div class="layout">
         <div class="card">
             <h2>Kitap Bilgileri</h2>
@@ -318,15 +277,19 @@
                     <label for="kitap_barkod">KitapBarkod</label>
                     <input type="text" id="kitap_barkod" name="kitap_barkod"
                            value="{{ kitap_barkod or '' }}" autocomplete="off">
-                    <div class="hint">
-                        Barkod okuyucuyu kullanın veya kameradan okutun. Enter ile otomatik getir &amp; kaydet.
-                    </div>
+                    <div class="hint">Barkod okuyucuyu kullanın. Enter ile otomatik getir &amp; kaydet.</div>
                 </div>
 
                 <div class="form-group">
                     <label for="kitap_adi">KitapAdı</label>
                     <input type="text" id="kitap_adi" name="kitap_adi"
                            value="{{ kitap_adi or '' }}">
+                </div>
+
+                <div class="form-group">
+                    <label for="yazar">Yazar</label>
+                    <input type="text" id="yazar" name="yazar"
+                           value="{{ yazar or '' }}">
                 </div>
 
                 <div class="form-group">
@@ -361,6 +324,7 @@
                 <div class="last-book">
                     <div class="last-book-title">{{ last_kitap_adi }}</div>
                     <p class="last-book-item"><span>KitapBarkod:</span> {{ last_kitap_barkod }}</p>
+                    <p class="last-book-item"><span>Yazar:</span> {{ last_yazar }}</p>
                     <p class="last-book-item"><span>Bölümü:</span> {{ last_bolumu }}</p>
                     <p class="last-book-item"><span>Statüsü:</span> {{ last_statusu }}</p>
                     <p class="last-book-item"><span>YerNumarası:</span> {{ last_odunc_durumu }}</p>
@@ -392,9 +356,6 @@
     {% endif %}
 </div>
 
-<!-- Quagga2 kütüphanesi -->
-<script src="https://unpkg.com/@ericblade/quagga2@1.2.6/dist/quagga.min.js"></script>
-
 <script>
     function closeWarning() {
         const overlay = document.querySelector('.warning-overlay');
@@ -422,130 +383,6 @@
             }
         });
     }
-
-    // ====== Kamera ile barkod okunduğunda formu otomatik çalıştıran fonksiyon ======
-    function handleScannedBarcode(code) {
-        const barkodInput = document.getElementById('kitap_barkod');
-        const form = document.getElementById('bookForm');
-        const actionInput = document.getElementById('actionInput');
-
-        if (!barkodInput || !form || !actionInput) return;
-
-        barkodInput.value = code;
-        actionInput.value = 'lookup';
-        form.submit();
-    }
-
-    // ================== GELİŞMİŞ KAMERA & BARKOD OKUMA ==================
-
-    let cameraEnabled = false;
-    let lastScannedCode = null;
-    let lastScannedTime = 0;
-
-    function startCamera() {
-        const cameraArea = document.getElementById('camera-area');
-        const statusEl = document.getElementById('scan-status');
-        const warnEl = document.getElementById('scan-warning');
-        const btn = document.getElementById('toggle-camera-btn');
-
-        if (cameraArea) cameraArea.style.display = 'block';
-        if (btn) btn.textContent = "Kamerayı Kapat";
-        if (warnEl) warnEl.textContent = "";
-
-        if (!window.Quagga) {
-            alert("Kamera kütüphanesi yüklenemedi.");
-            if (btn) btn.textContent = "Kamerayı Aç";
-            return;
-        }
-
-        Quagga.init({
-            inputStream: {
-                type: "LiveStream",
-                target: document.querySelector('#barcode-video'),
-                constraints: {
-                    facingMode: "environment"
-                }
-            },
-            decoder: {
-                readers: ["ean_reader", "ean_13_reader", "code_128_reader", "upc_reader"]
-            }
-        }, function (err) {
-            if (err) {
-                console.error("Kamera Hatası:", err);
-
-                if (err.name === "NotAllowedError") {
-                    statusEl.textContent = "Kamera izni verilmedi. Lütfen tarayıcı ayarlarından izin verin.";
-                } else if (err.name === "NotFoundError") {
-                    statusEl.textContent = "Kamera bulunamadı.";
-                } else {
-                    statusEl.textContent = "Kamera başlatılırken bir hata oluştu.";
-                }
-
-                if (warnEl)
-                    warnEl.textContent = "Mobil tarayıcı veya HTTPS ayarlarını kontrol edin.";
-
-                if (btn) btn.textContent = "Kamerayı Aç";
-                cameraEnabled = false;
-                return;
-            }
-
-            Quagga.start();
-            cameraEnabled = true;
-
-            if (statusEl)
-                statusEl.textContent = "Kamera açık. Barkodu görüntü alanına getirin.";
-        });
-
-        Quagga.onDetected(function (result) {
-            if (!cameraEnabled) return;
-            if (!result.codeResult || !result.codeResult.code) return;
-
-            const code = result.codeResult.code.trim();
-            const now = Date.now();
-
-            // Aynı barkodu 1 saniye içinde tekrar tekrar kaydetmesin
-            if (code === lastScannedCode && (now - lastScannedTime) < 1000) return;
-
-            lastScannedCode = code;
-            lastScannedTime = now;
-
-            handleScannedBarcode(code);
-        });
-    }
-
-    function stopCamera() {
-        const cameraArea = document.getElementById('camera-area');
-        const btn = document.getElementById('toggle-camera-btn');
-        const statusEl = document.getElementById('scan-status');
-
-        if (window.Quagga) {
-            try { Quagga.stop(); } catch (e) { console.warn(e); }
-        }
-
-        cameraEnabled = false;
-
-        if (cameraArea) cameraArea.style.display = 'none';
-        if (btn) btn.textContent = "Kamerayı Aç";
-        if (statusEl) statusEl.textContent = "Kamera kapalı.";
-    }
-
-    document.addEventListener("DOMContentLoaded", function () {
-        const btn = document.getElementById('toggle-camera-btn');
-
-        if (btn) {
-            btn.addEventListener('click', function () {
-                if (!cameraEnabled) {
-                    startCamera();
-                } else {
-                    stopCamera();
-                }
-            });
-        }
-    });
-
-    window.addEventListener("beforeunload", function () {
-        stopCamera();
-    });
 </script>
 </body>
 </html>
