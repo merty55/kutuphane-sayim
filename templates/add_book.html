@@ -237,6 +237,23 @@
             color: var(--text-muted);
             margin-top: 4px;
         }
+
+        /* 🔹 Kamera bölümü için ufak ek stil */
+        .camera-section {
+            margin-top: 14px;
+        }
+
+        #videoPreview {
+            width: 100%;
+            max-height: 260px;
+            border-radius: 8px;
+            margin-top: 8px;
+            background: #000;
+        }
+
+        .btn-camera {
+            margin-top: 6px;
+        }
     </style>
 </head>
 <body>
@@ -253,7 +270,10 @@
 
 <div class="container">
     <h1>Barkod Okut</h1>
-    <p class="subtitle">Barkod okuyucunuz barkodu okutup otomatik Enter gönderdiğinde kitap bilgileri genel listeden çekilerek kaydedilir.</p>
+    <p class="subtitle">
+        Barkod okuyucunuz veya cihaz kameranız ile barkodu okutup otomatik Enter gönderdiğinizde kitap bilgileri
+        genel listeden çekilerek kaydedilir.
+    </p>
 
     <!-- 📊 TOPLAM KİTAP SAYACI -->
     <div class="alert alert-success">
@@ -316,6 +336,20 @@
                     Kaydet (Elle Giriş)
                 </button>
             </form>
+
+            <!-- 🔹 Kamera ile Barkod Okuma Bölümü -->
+            <hr style="margin:16px 0;border:none;border-top:1px solid #e0e0e0;">
+            <div class="camera-section">
+                <h3 style="font-size:15px;margin:0 0 6px;">Kamera ile Barkod Okuma</h3>
+                <p class="hint">
+                    Kamerayı açtıktan sonra kitap barkodlarını sırayla kameraya gösterin.
+                    Her barkod otomatik olarak aranır ve kaydedilir. Siz kapatana kadar kamera açık kalır.
+                </p>
+                <button type="button" class="btn-primary btn-camera" id="toggleCameraBtn">
+                    Kamerayı Aç
+                </button>
+                <video id="videoPreview" playsinline autoplay muted></video>
+            </div>
         </div>
 
         <div class="card">
@@ -383,6 +417,129 @@
             }
         });
     }
+</script>
+
+<!-- 🔹 ZXing kütüphanesi (kamera ile barkod okuma için) -->
+<script src="https://unpkg.com/@zxing/library@0.20.0"></script>
+<script>
+    (function () {
+        const form = document.getElementById('bookForm');
+        const barkodInput = document.getElementById('kitap_barkod');
+        const toggleBtn = document.getElementById('toggleCameraBtn');
+        const videoElem = document.getElementById('videoPreview');
+
+        if (!form || !barkodInput || !toggleBtn || !videoElem || !window.ZXing) {
+            return;
+        }
+
+        let codeReader = null;
+        let isScanning = false;
+        let isSubmitting = false;
+        let lastResult = '';
+        let lastScanTime = 0;
+        const SCAN_COOLDOWN = 1200; // ms
+
+        async function startScanner() {
+            if (isScanning) return;
+            try {
+                codeReader = new ZXing.BrowserMultiFormatReader();
+                const devices = await codeReader.listVideoInputDevices();
+
+                if (!devices || devices.length === 0) {
+                    alert('Kamera bulunamadı veya erişim izni verilmedi.');
+                    return;
+                }
+
+                let selectedDeviceId = devices[0].deviceId;
+                const backCam = devices.find(d =>
+                    /back|arka|environment/i.test(d.label)
+                );
+                if (backCam) {
+                    selectedDeviceId = backCam.deviceId;
+                }
+
+                await codeReader.decodeFromVideoDevice(
+                    selectedDeviceId,
+                    videoElem,
+                    (result, err) => {
+                        if (result) {
+                            const now = Date.now();
+                            const text = (result.text || '').trim();
+                            if (!text) return;
+                            if (isSubmitting) return;
+
+                            if (text === lastResult && (now - lastScanTime) < SCAN_COOLDOWN) {
+                                return;
+                            }
+
+                            lastResult = text;
+                            lastScanTime = now;
+                            handleBarcode(text);
+                        }
+                    }
+                );
+
+                isScanning = true;
+                toggleBtn.textContent = 'Kamerayı Kapat';
+                localStorage.setItem('scannerEnabled_addBook', '1');
+            } catch (e) {
+                console.error(e);
+                alert('Kamera başlatılamadı. Tarayıcı kamera erişimine izin verdiğinizden emin olun.');
+                stopScanner();
+            }
+        }
+
+        function stopScanner() {
+            if (codeReader) {
+                try {
+                    codeReader.reset();
+                } catch (e) {}
+                codeReader = null;
+            }
+            isScanning = false;
+            isSubmitting = false;
+
+            if (videoElem && videoElem.srcObject) {
+                const tracks = videoElem.srcObject.getTracks();
+                tracks.forEach(t => t.stop());
+                videoElem.srcObject = null;
+            }
+
+            toggleBtn.textContent = 'Kamerayı Aç';
+            localStorage.removeItem('scannerEnabled_addBook');
+        }
+
+        function handleBarcode(code) {
+            isSubmitting = true;
+            barkodInput.value = code;
+            const actionInput = document.getElementById('actionInput');
+            if (actionInput) {
+                actionInput.value = 'lookup';
+            }
+            form.submit();
+        }
+
+        toggleBtn.addEventListener('click', function () {
+            if (isScanning) {
+                stopScanner();
+            } else {
+                startScanner();
+            }
+        });
+
+        // Sayfa her yüklendiğinde, daha önce "Kamerayı Aç" demişsen
+        // otomatik olarak kamerayı tekrar aç
+        if (localStorage.getItem('scannerEnabled_addBook') === '1') {
+            startScanner();
+        }
+
+        window.addEventListener('beforeunload', function () {
+            // Kamera açıksa flag kalsın ki yeniden açılabilsin
+            if (!isScanning) {
+                localStorage.removeItem('scannerEnabled_addBook');
+            }
+        });
+    })();
 </script>
 </body>
 </html>
