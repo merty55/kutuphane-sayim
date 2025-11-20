@@ -439,6 +439,31 @@
         let lastScanTime = 0;
         const SCAN_COOLDOWN = 1200; // ms
 
+        // 🔊 Basit “bip” sesi (Web Audio API)
+        let audioCtx = null;
+        function playBeep() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const duration = 0.12; // saniye
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.type = 'square';
+                oscillator.frequency.value = 1200;    // frekans (Hz)
+                gainNode.gain.value = 0.15;           // ses seviyesi
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.warn('Beep çalınamadı:', e);
+            }
+        }
+
         async function startScanner() {
             if (isScanning) return;
             try {
@@ -511,6 +536,10 @@
 
         function handleBarcode(code) {
             isSubmitting = true;
+
+            // 🔊 Her barkod okunduğunda bip
+            playBeep();
+
             barkodInput.value = code;
             const actionInput = document.getElementById('actionInput');
             if (actionInput) {
