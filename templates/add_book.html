@@ -437,7 +437,7 @@
         let isSubmitting = false;
         let lastResult = '';
         let lastScanTime = 0;
-        const SCAN_COOLDOWN = 600; // ms - daha hızlı yeniden okuma için yarıya düşürüldü
+        const SCAN_COOLDOWN = 1200; // ms
 
         // 🔊 Basit “bip” sesi (Web Audio API)
         let audioCtx = null;
@@ -467,21 +467,7 @@
         async function startScanner() {
             if (isScanning) return;
             try {
-                const ZX = window.ZXing;
-
-                // 🔍 Sadece kitaplarda sık kullanılan barkod tiplerine odaklan
-                const hints = new Map();
-                const formats = [
-                    ZX.BarcodeFormat.EAN_13,
-                    ZX.BarcodeFormat.EAN_8,
-                    ZX.BarcodeFormat.CODE_128,
-                    ZX.BarcodeFormat.UPC_A,
-                    ZX.BarcodeFormat.UPC_E
-                ];
-                hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, formats);
-
-                codeReader = new ZX.BrowserMultiFormatReader(hints);
-
+                codeReader = new ZXing.BrowserMultiFormatReader();
                 const devices = await codeReader.listVideoInputDevices();
 
                 if (!devices || devices.length === 0) {
@@ -497,19 +483,8 @@
                     selectedDeviceId = backCam.deviceId;
                 }
 
-                // 📷 Biraz daha yüksek çözünürlük isteyen constraints
-                const constraints = {
-                    video: {
-                        deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 },
-                        facingMode: { ideal: 'environment' }
-                    },
-                    audio: false
-                };
-
-                await codeReader.decodeFromConstraints(
-                    constraints,
+                await codeReader.decodeFromVideoDevice(
+                    selectedDeviceId,
                     videoElem,
                     (result, err) => {
                         if (result) {
