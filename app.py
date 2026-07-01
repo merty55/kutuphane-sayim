@@ -10,7 +10,7 @@ import pandas as pd
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'bafra-kutuphane-sayim-2025'
 
-# Neon.tech Online Veritabanı
+# Online Kalıcı Veritabanı (Neon.tech)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_5NZFl8WKfuJe@ep-noisy-rain-at1cl5ca.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -53,6 +53,12 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
+def get_current_user():
+    uid = session.get('user_id')
+    return User.query.get(uid) if uid else None
+
+# ===================== ROTALAR =====================
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     error = None
@@ -67,14 +73,15 @@ def login():
 @app.route("/")
 @login_required
 def index():
-    user = User.query.get(session['user_id'])
+    user = get_current_user()
     return render_template("index.html", current_username=user.username, is_admin=user.is_admin)
 
 @app.route("/books")
 @login_required
 def books():
-    books_data = Book.query.all()
-    return render_template("books.html", books=books_data, total_books=len(books_data))
+    page = request.args.get("page", 1, type=int)
+    books_page = Book.query.paginate(page=page, per_page=100)
+    return render_template("books.html", books=books_page.items, total_books=books_page.total)
 
 @app.route("/add", methods=["GET", "POST"])
 @login_required
@@ -83,19 +90,17 @@ def add_book():
     if request.method == "POST":
         barcode = request.form.get("kitap_barkod", "").strip()
         action = request.form.get("action")
-        
-        # Artık doğrudan MasterBook tablosuna soruyoruz
         master = MasterBook.query.filter_by(kitap_barkod=barcode).first()
         
         if action == "lookup":
             if master:
-                new_book = Book(kitap_barkod=barcode, kitap_adi=master.kitap_adi, yazar=master.yazar, bolumu=master.bolumu, statusu=master.statusu, odunc_durumu=master.odunc_durumu, created_by=User.query.get(session['user_id']).username)
+                new_book = Book(kitap_barkod=barcode, kitap_adi=master.kitap_adi, yazar=master.yazar, bolumu=master.bolumu, statusu=master.statusu, odunc_durumu=master.odunc_durumu, created_by=get_current_user().username)
                 db.session.add(new_book)
                 db.session.commit()
-                success = "Kitap bulundu ve eklendi."
+                success = "Kitap başarıyla eklendi."
             else:
                 error = "Kayıt bulunamadı, elle giriniz."
-    return render_template("add_book.html", error=error, success=success)
+    return render_template("add_book.html", error=error, success=success, warning=warning)
 
 @app.route("/upload-master", methods=["POST"])
 @login_required
@@ -109,6 +114,22 @@ def upload_master():
         db.session.commit()
         return redirect(url_for("index", upload_success="Tüm liste kalıcı olarak yüklendi."))
     return redirect(url_for("index", upload_error="Dosya seçilmedi."))
+
+@app.route("/delete_last/<id>", methods=["POST"])
+@login_required
+def delete_last(id):
+    book = Book.query.get(id)
+    if book:
+        db.session.delete(book)
+        db.session.commit()
+    return redirect(url_for("add_book"))
+
+@app.route("/reset-count", methods=["POST"])
+@login_required
+def reset_count():
+    Book.query.delete()
+    db.session.commit()
+    return redirect(url_for("books"))
 
 # ===================== BAŞLATMA =====================
 with app.app_context():
