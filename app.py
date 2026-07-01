@@ -900,36 +900,21 @@ def search():
 
     user = get_current_user()
 
-    if not os.path.exists(MASTER_LIST_PATH):
-        error = "Genel liste (genel_liste.csv) bulunamadı. Önce ana listeden dosya yükleyin."
-        return render_template(
-            "search.html",
-            error=error,
-            results=results,
-            query=query,
-            current_username=user.username if user else "",
-        )
-
     if request.method == "POST":
         query = request.form.get("query", "").strip()
 
         if not query:
             error = "Lütfen aramak istediğiniz kelimeyi yazın."
         else:
-            try:
-                df = pd.read_csv(MASTER_LIST_PATH, dtype=str)
-                df = df.fillna("")
+            # Artık CSV'ye bakmıyoruz, doğrudan MasterBook veritabanında arıyoruz
+            # ilike komutu büyük-küçük harf duyarsız arama yapar
+            results = MasterBook.query.filter(
+                (MasterBook.kitap_adi.ilike(f'%{query}%')) | 
+                (MasterBook.yazar.ilike(f'%{query}%'))
+            ).all()
 
-                mask = df["KitapAdı"].astype(str).str.contains(query, case=False, na=False)
-                filtered = df[mask]
-
-                if filtered.empty:
-                    error = "Aramanıza uygun kitap bulunamadı."
-                else:
-                    results = filtered.to_dict(orient="records")
-
-            except Exception as e:
-                error = f"Genel liste okunurken bir hata oluştu: {e}"
+            if not results:
+                error = "Aramanıza uygun kitap bulunamadı."
 
     return render_template(
         "search.html",
@@ -938,7 +923,6 @@ def search():
         query=query,
         current_username=user.username if user else "",
     )
-
 
 # === RENDER'IN OKUYABİLMESİ İÇİN DIŞARI ALDIĞIMIZ VERİTABANI KURULUMU ===
 with app.app_context():
