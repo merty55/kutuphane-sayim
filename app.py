@@ -14,15 +14,15 @@ from flask import (
 )
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy import text, func
+from sqlalchemy import func
 import pandas as pd
 
 app = Flask(__name__)
 
-# GÜVENLİK: Oturumlar için gizli anahtar (bunu kendine göre değiştirmen iyi olur)
+# GÜVENLİK: Oturumlar için gizli anahtar
 app.config['SECRET_KEY'] = 'bafra-kutuphane-sayim-2025'
 
-# Veritabanı ayarı (aynı klasörde kutuphane_v2.db oluşacak)
+# Veritabanı ayarı (Neon.tech PostgreSQL)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_5NZFl8WKfuJe@ep-noisy-rain-at1cl5ca.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -69,13 +69,6 @@ def find_book_from_master(barcode: str):
     Barkod okuyucudan gelen değerin ilk 12 hanesine göre
     genel_liste.csv içinde satır arar.
     Bulursa tüm alanları içeren bir dict döner, bulamazsa None.
-    Alanlar:
-      - KitapBarkod
-      - KitapAdı
-      - Yazar
-      - Bölümü
-      - Statüsü
-      - YerNumarası
     """
     if not barcode:
         return None
@@ -255,7 +248,6 @@ def toggle_user(user_id):
     current_user = get_current_user()
     user = User.query.get_or_404(user_id)
 
-    # Kendini pasif yapmana izin verme
     if user.id == current_user.id:
         return redirect(url_for(
             "users",
@@ -263,7 +255,6 @@ def toggle_user(user_id):
             success=""
         ))
 
-    # Eğer pasife alınacak kullanıcı admin ise ve son admin ise, engelle
     if user.is_admin and user.is_active:
         admin_count = User.query.filter_by(is_admin=True, is_active=True).count()
         if admin_count <= 1:
@@ -291,7 +282,6 @@ def delete_user(user_id):
     current_user = get_current_user()
     user = User.query.get_or_404(user_id)
 
-    # Kendini silemezsin
     if user.id == current_user.id:
         return redirect(url_for(
             "users",
@@ -299,7 +289,6 @@ def delete_user(user_id):
             success=""
         ))
 
-    # Son admin ise silme
     if user.is_admin:
         admin_count = User.query.filter_by(is_admin=True, is_active=True).count()
         if admin_count <= 1:
@@ -346,23 +335,19 @@ def index():
 @app.route("/books")
 @login_required
 def books():
-    # Sayfa numarası (default 1)
     page = request.args.get("page", 1, type=int)
     page_size = 100
 
     base_query = Book.query.order_by(Book.id)
     total_books = base_query.count()
 
-    # Toplam sayfa sayısı
     total_pages = (total_books + page_size - 1) // page_size
     if total_pages == 0:
         total_pages = 1
 
-    # Sayfa sınırlarının dışına çıkılırsa 1. sayfaya düş
     if page < 1 or page > total_pages:
         page = 1
 
-    # İlgili sayfadaki kayıtlar
     books_page = (
         base_query
         .offset((page - 1) * page_size)
@@ -370,7 +355,6 @@ def books():
         .all()
     )
 
-    # Kullanıcıya göre kaç kitap eklenmiş? (TÜM LİSTE ÜZERİNDEN)
     raw_counts = (
         db.session.query(Book.created_by, func.count(Book.id))
         .group_by(Book.created_by)
@@ -411,7 +395,7 @@ def add_book():
     yazar = ""
     bolumu = ""
     statusu = ""
-    odunc_durumu = ""  # YerNumarası
+    odunc_durumu = ""  
 
     last_kitap_barkod = None
     last_kitap_adi = None
@@ -525,7 +509,6 @@ def add_book():
 
             def normalize(text: str) -> str:
                 text = (text or "").strip()
-                # Türkçe I ve İ harflerini güvenli şekilde küçült
                 text = text.replace("İ", "i").replace("I", "ı")
                 parts = text.lower().split()
                 return " ".join(parts)
@@ -559,7 +542,6 @@ def add_book():
             last_statusu = statusu
             last_odunc_durumu = odunc_durumu
 
-            # Barkod kutusu yeni okutma için boş gelsin
             kitap_barkod = ""
 
             return render_template(
@@ -582,7 +564,6 @@ def add_book():
                 total_books=total_books,
             )
 
-        # Elle kaydet
         if not kitap_barkod or not kitap_adi:
             error = "En azından KitapBarkod ve KitapAdı alanları zorunludur!"
             return render_template(
@@ -681,7 +662,6 @@ def add_book():
             total_books=total_books,
         )
 
-    # GET isteği
     return render_template(
         "add_book.html",
         error=error,
@@ -800,13 +780,10 @@ def reset_count():
         db.session.rollback()
         error = f"Sayım sıfırlanırken bir hata oluştu: {e}"
 
-    # Tablodaki kayıtlar silindi, artık 0 kayıt var
     total_books = 0
     page = 1
     total_pages = 1
     page_size = 100
-
-    # Kullanıcı bazlı sayılar da sıfır (hiç kayıt yok)
     user_counts = []
 
     return render_template(
@@ -825,7 +802,6 @@ def reset_count():
 @app.route("/export-books")
 @login_required
 def export_books():
-    # TÜM KAYITLAR İNDİRİLİR (sayfalama yok)
     books = Book.query.order_by(Book.id).all()
 
     data = []
@@ -943,23 +919,15 @@ def upload_master():
         ))
 
 
-# ===================== KİTAP ARA (GENEL LİSTEDE KİTAP ADINA GÖRE) =====================
-
 @app.route("/search", methods=["GET", "POST"])
 @login_required
 def search():
-    """
-    genel_liste.csv içindeki KitapAdı sütununda,
-    kullanıcının yazdığı kelimeyi (büyük-küçük harf duyarsız) arar.
-    Eşleşen satırları tablo halinde göstermek için search.html'e gönderir.
-    """
     error = None
     results = []
     query = ""
 
     user = get_current_user()
 
-    # Genel liste yoksa uyar
     if not os.path.exists(MASTER_LIST_PATH):
         error = "Genel liste (genel_liste.csv) bulunamadı. Önce ana listeden dosya yükleyin."
         return render_template(
@@ -1000,37 +968,18 @@ def search():
     )
 
 
+# === RENDER'IN OKUYABİLMESİ İÇİN DIŞARI ALDIĞIMIZ VERİTABANI KURULUMU ===
+with app.app_context():
+    # Veritabanı tablolarını sıfırdan Neon üzerinde oluşturur
+    db.create_all()
+
+    # Eğer hiç admin yoksa, ilk admin hesabını oluştur
+    if not User.query.filter_by(is_admin=True).first():
+        admin = User(username="admin", is_admin=True, is_active=True)
+        admin.set_password("admin123")  # İlk giriş için
+        db.session.add(admin)
+        db.session.commit()
+        print("İlk admin kullanıcısı oluşturuldu.")
+
 if __name__ == "__main__":
-    with app.app_context():
-        db.create_all()
-
-        # SQLite tablosuna is_active sütunu ekli mi emin ol (mevcut DB'yi bozmamak için)
-        try:
-            db.session.execute(text("ALTER TABLE user ADD COLUMN is_active BOOLEAN DEFAULT 1"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        # Book tablosuna created_by sütunu ekli mi emin ol
-        try:
-            db.session.execute(text("ALTER TABLE book ADD COLUMN created_by VARCHAR(50)"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        # Book tablosuna yazar sütunu ekli mi emin ol
-        try:
-            db.session.execute(text("ALTER TABLE book ADD COLUMN yazar VARCHAR(200)"))
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-        # Eğer hiç admin yoksa, ilk admin hesabını oluştur
-        if not User.query.filter_by(is_admin=True).first():
-            admin = User(username="admin", is_admin=True, is_active=True)
-            admin.set_password("admin123")  # İlk giriş için
-            db.session.add(admin)
-            db.session.commit()
-            print("İlk admin kullanıcısı oluşturuldu. Kullanıcı adı: admin, Şifre: admin123")
-
     app.run(host="0.0.0.0", port=5000, debug=True)
