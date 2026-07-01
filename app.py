@@ -23,7 +23,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'bafra-kutuphane-sayim-2025'
 
 # Veritabanı ayarı (aynı klasörde kutuphane_v2.db oluşacak)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///kutuphane_v2.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://neondb_owner:npg_5NZFl8WKfuJe@ep-noisy-rain-at1cl5ca.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -793,3 +793,244 @@ def reset_count():
 
     try:
         deleted_count = Book.query.count()
+        Book.query.delete()
+        db.session.commit()
+        success = f"Sayım sıfırlandı. Silinen kayıt sayısı: {deleted_count}."
+    except Exception as e:
+        db.session.rollback()
+        error = f"Sayım sıfırlanırken bir hata oluştu: {e}"
+
+    # Tablodaki kayıtlar silindi, artık 0 kayıt var
+    total_books = 0
+    page = 1
+    total_pages = 1
+    page_size = 100
+
+    # Kullanıcı bazlı sayılar da sıfır (hiç kayıt yok)
+    user_counts = []
+
+    return render_template(
+        "books.html",
+        books=[],
+        success=success,
+        error=error,
+        user_counts=user_counts,
+        total_books=total_books,
+        page=page,
+        total_pages=total_pages,
+        page_size=page_size,
+    )
+
+
+@app.route("/export-books")
+@login_required
+def export_books():
+    # TÜM KAYITLAR İNDİRİLİR (sayfalama yok)
+    books = Book.query.order_by(Book.id).all()
+
+    data = []
+    for b in books:
+        data.append({
+            "ID": b.id,
+            "KitapBarkod": b.kitap_barkod,
+            "KitapAdı": b.kitap_adi,
+            "Yazar": b.yazar,
+            "Bölümü": b.bolumu,
+            "Statüsü": b.statusu,
+            "YerNumarası": b.odunc_durumu,
+            "EkleyenKullanıcı": b.created_by,
+        })
+
+    columns = [
+        "ID",
+        "KitapBarkod",
+        "KitapAdı",
+        "Yazar",
+        "Bölümü",
+        "Statüsü",
+        "YerNumarası",
+        "EkleyenKullanıcı",
+    ]
+    df = pd.DataFrame(data, columns=columns)
+
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="KitapListesi")
+    output.seek(0)
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="kitap_listesi.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/download-template")
+@login_required
+def download_template():
+    columns = [
+        "KitapBarkod",
+        "KitapAdı",
+        "Yazar",
+        "Bölümü",
+        "Statüsü",
+        "YerNumarası",
+    ]
+    df = pd.DataFrame(columns=columns)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="genel_liste")
+    output.seek(0)
+
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="genel_liste_sablon.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/upload-master", methods=["POST"])
+@login_required
+def upload_master():
+    file = request.files.get("file")
+    if not file or file.filename == "":
+        return redirect(url_for("index", upload_error="Lütfen bir Excel dosyası seçin.", upload_success=""))
+
+    try:
+        df = pd.read_excel(file)
+
+        required_cols = [
+            "KitapBarkod",
+            "KitapAdı",
+            "Yazar",
+            "Bölümü",
+            "Statüsü",
+            "YerNumarası",
+        ]
+
+        for col in required_cols:
+            if col not in df.columns:
+                return redirect(url_for(
+                    "index",
+                    upload_error=(
+                        "Excel dosyasında şu sütunlar tam olarak bu isimlerle bulunmalıdır: "
+                        "KitapBarkod, KitapAdı, Yazar, Bölümü, Statüsü, YerNumarası."
+                    ),
+                    upload_success=""
+                ))
+
+        df = df[required_cols]
+        df = df.dropna(subset=["KitapBarkod", "KitapAdı"])
+
+        for col in required_cols:
+            df[col] = df[col].astype(str).str.strip()
+
+        df.to_csv(MASTER_LIST_PATH, index=False, encoding="utf-8")
+
+        return redirect(url_for(
+            "index",
+            upload_success=f"Ana liste başarıyla yüklendi. Toplam {len(df)} kayıt kaydedildi.",
+            upload_error=""
+        ))
+
+    except Exception as e:
+        return redirect(url_for(
+            "index",
+            upload_error=f"Excel dosyası okunurken bir hata oluştu: {e}",
+            upload_success=""
+        ))
+
+
+# ===================== KİTAP ARA (GENEL LİSTEDE KİTAP ADINA GÖRE) =====================
+
+@app.route("/search", methods=["GET", "POST"])
+@login_required
+def search():
+    """
+    genel_liste.csv içindeki KitapAdı sütununda,
+    kullanıcının yazdığı kelimeyi (büyük-küçük harf duyarsız) arar.
+    Eşleşen satırları tablo halinde göstermek için search.html'e gönderir.
+    """
+    error = None
+    results = []
+    query = ""
+
+    user = get_current_user()
+
+    # Genel liste yoksa uyar
+    if not os.path.exists(MASTER_LIST_PATH):
+        error = "Genel liste (genel_liste.csv) bulunamadı. Önce ana listeden dosya yükleyin."
+        return render_template(
+            "search.html",
+            error=error,
+            results=results,
+            query=query,
+            current_username=user.username if user else "",
+        )
+
+    if request.method == "POST":
+        query = request.form.get("query", "").strip()
+
+        if not query:
+            error = "Lütfen aramak istediğiniz kelimeyi yazın."
+        else:
+            try:
+                df = pd.read_csv(MASTER_LIST_PATH, dtype=str)
+                df = df.fillna("")
+
+                mask = df["KitapAdı"].astype(str).str.contains(query, case=False, na=False)
+                filtered = df[mask]
+
+                if filtered.empty:
+                    error = "Aramanıza uygun kitap bulunamadı."
+                else:
+                    results = filtered.to_dict(orient="records")
+
+            except Exception as e:
+                error = f"Genel liste okunurken bir hata oluştu: {e}"
+
+    return render_template(
+        "search.html",
+        error=error,
+        results=results,
+        query=query,
+        current_username=user.username if user else "",
+    )
+
+
+if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+
+        # SQLite tablosuna is_active sütunu ekli mi emin ol (mevcut DB'yi bozmamak için)
+        try:
+            db.session.execute(text("ALTER TABLE user ADD COLUMN is_active BOOLEAN DEFAULT 1"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        # Book tablosuna created_by sütunu ekli mi emin ol
+        try:
+            db.session.execute(text("ALTER TABLE book ADD COLUMN created_by VARCHAR(50)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        # Book tablosuna yazar sütunu ekli mi emin ol
+        try:
+            db.session.execute(text("ALTER TABLE book ADD COLUMN yazar VARCHAR(200)"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+        # Eğer hiç admin yoksa, ilk admin hesabını oluştur
+        if not User.query.filter_by(is_admin=True).first():
+            admin = User(username="admin", is_admin=True, is_active=True)
+            admin.set_password("admin123")  # İlk giriş için
+            db.session.add(admin)
+            db.session.commit()
+            print("İlk admin kullanıcısı oluşturuldu. Kullanıcı adı: admin, Şifre: admin123")
+
+    app.run(host="0.0.0.0", port=5000, debug=True)
