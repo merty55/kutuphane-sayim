@@ -61,43 +61,37 @@ class Book(db.Model):
     def __repr__(self):
         return f"<Book {self.kitap_barkod} - {self.kitap_adi}>"
 
+class MasterBook(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    kitap_barkod = db.Column(db.String(50), unique=True, index=True) # index=True sayesinde aramalar ışık hızında olacak
+    kitap_adi = db.Column(db.String(300))
+    yazar = db.Column(db.String(200))
+    bolumu = db.Column(db.String(200))
+    statusu = db.Column(db.String(100))
+    odunc_durumu = db.Column(db.String(200))
+
 
 # ===================== YARDIMCI FONKSİYONLAR =====================
 
 def find_book_from_master(barcode: str):
-    """
-    Barkod okuyucudan gelen değerin ilk 12 hanesine göre
-    genel_liste.csv içinde satır arar.
-    Bulursa tüm alanları içeren bir dict döner, bulamazsa None.
-    """
     if not barcode:
         return None
-
+    
     code = barcode.strip()
-    if len(code) >= 12:
-        key = code[:12]
-    else:
-        key = code
-
-    if not os.path.exists(MASTER_LIST_PATH):
-        return None
-
-    with open(MASTER_LIST_PATH, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            row_code = (row.get("KitapBarkod") or "").strip()
-            if row_code == key:
-                return {
-                    "KitapBarkod": (row.get("KitapBarkod") or "").strip(),
-                    "KitapAdı": (row.get("KitapAdı") or "").strip(),
-                    "Yazar": (row.get("Yazar") or "").strip(),
-                    "Bölümü": (row.get("Bölümü") or "").strip(),
-                    "Statüsü": (row.get("Statüsü") or "").strip(),
-                    "YerNumarası": (row.get("YerNumarası") or "").strip(),
-                }
-
+    key = code[:12] if len(code) >= 12 else code
+    
+    # Artık dosyaya değil, MasterBook tablosuna soruyoruz
+    book = MasterBook.query.filter_by(kitap_barkod=key).first()
+    if book:
+        return {
+            "KitapBarkod": book.kitap_barkod,
+            "KitapAdı": book.kitap_adi,
+            "Yazar": book.yazar,
+            "Bölümü": book.bolumu,
+            "Statüsü": book.statusu,
+            "YerNumarası": book.odunc_durumu,
+        }
     return None
-
 
 def get_current_user():
     uid = session.get('user_id')
@@ -871,53 +865,31 @@ def download_template():
 @login_required
 def upload_master():
     file = request.files.get("file")
-    if not file or file.filename == "":
-        return redirect(url_for("index", upload_error="Lütfen bir Excel dosyası seçin.", upload_success=""))
+    if not file:
+        return redirect(url_for("index", upload_error="Dosya seçilmedi."))
 
     try:
         df = pd.read_excel(file)
-
-        required_cols = [
-            "KitapBarkod",
-            "KitapAdı",
-            "Yazar",
-            "Bölümü",
-            "Statüsü",
-            "YerNumarası",
-        ]
-
-        for col in required_cols:
-            if col not in df.columns:
-                return redirect(url_for(
-                    "index",
-                    upload_error=(
-                        "Excel dosyasında şu sütunlar tam olarak bu isimlerle bulunmalıdır: "
-                        "KitapBarkod, KitapAdı, Yazar, Bölümü, Statüsü, YerNumarası."
-                    ),
-                    upload_success=""
-                ))
-
-        df = df[required_cols]
-        df = df.dropna(subset=["KitapBarkod", "KitapAdı"])
-
-        for col in required_cols:
-            df[col] = df[col].astype(str).str.strip()
-
-        df.to_csv(MASTER_LIST_PATH, index=False, encoding="utf-8")
-
-        return redirect(url_for(
-            "index",
-            upload_success=f"Ana liste başarıyla yüklendi. Toplam {len(df)} kayıt kaydedildi.",
-            upload_error=""
-        ))
-
+        # Önce eski listeyi tamamen temizle
+        MasterBook.query.delete()
+        
+        # Excel'den gelen verileri veritabanına aktar
+        for _, row in df.iterrows():
+            new_m = MasterBook(
+                kitap_barkod=str(row["KitapBarkod"]).strip(),
+                kitap_adi=str(row["KitapAdı"]).strip(),
+                yazar=str(row["Yazar"]).strip(),
+                bolumu=str(row["Bölümü"]).strip(),
+                statusu=str(row["Statüsü"]).strip(),
+                odunc_durumu=str(row["YerNumarası"]).strip()
+            )
+            db.session.add(new_m)
+        
+        db.session.commit()
+        return redirect(url_for("index", upload_success="Tüm liste kalıcı veritabanına aktarıldı!"))
     except Exception as e:
-        return redirect(url_for(
-            "index",
-            upload_error=f"Excel dosyası okunurken bir hata oluştu: {e}",
-            upload_success=""
-        ))
-
+        db.session.rollback()
+        return redirect(url_for("index", upload_error=f"Hata: {e}"))
 
 @app.route("/search", methods=["GET", "POST"])
 @login_required
